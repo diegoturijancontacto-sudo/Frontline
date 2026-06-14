@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Generador de Catálogo de Arte Estilo RTBROK</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+<style>
+@import url('https://fonts.googleapis.com/css?family=Roboto:wght@300;400;700&display=swap');
+
+body {
+    background-color: #f3f4f6;
+    font-family: 'Roboto', sans-serif;
+}
+
+.font-serif-pdf {
+    font-family: 'Times New Roman', Times, serif;
+}
+
+.font-sans-pdf {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.preview-page {
+    background: white;
+    width: 100%;
+    aspect-ratio: 210/297;
+    box-shadow: 0 10px 25px 5px rgba(0, 0, 0, 0.1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 2rem;
+    color: black;
+}
+
+.loading-overlay {
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(5px);
+}
+
+.section-card {
+    transition: all 0.3s ease;
+}
+
+.section-card.moving {
+    opacity: 0.5;
+    transform: scale(0.98);
+}
+
+@media (max-width: 768px) {
+    .mobile-fab-container {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        padding: 1rem;
+        z-index: 50;
+        border-top: 1px solid #e5e7eb;
+    }
+    .content-padding-bottom {
+        padding-bottom: 100px;
+    }
+}
+</style>
+</head>
+<body class="min-h-screen flex flex-col md:flex-row md:h-screen md:overflow-hidden bg-gray-200">
+
+<!-- NAVEGACIÓN MÓVIL -->
+<div class="md:hidden bg-slate-900 text-white p-2 sticky top-0 z-40 shadow-md flex justify-between">
+    <button onclick="switchTab('editor')" id="tabEditor" class="flex-1 py-2 text-center font-bold border-b-2 border-white">
+        <i class="fas fa-edit mr-2"></i>Editar
+    </button>
+    <button onclick="switchTab('preview')" id="tabPreview" class="flex-1 py-2 text-center text-gray-400 border-b-2 border-transparent">
+        <i class="fas fa-eye mr-2"></i>Vista Previa
+    </button>
+</div>
+
+<!-- SECCIÓN IZQUIERDA: EDITOR -->
+<aside id="editorPanel" class="w-full md:w-1/3 lg:w-1/4 bg-white md:border-r border-gray-300 flex flex-col h-full z-10 relative shadow-lg">
+    <div class="hidden md:block p-5 bg-slate-900 text-white shadow-md shrink-0">
+        <h1 class="text-xl font-bold font-serif-pdf"><i class="fas fa-palette mr-2"></i> ArtTools Catálogos</h1>
+    </div>
+
+    <div class="flex-1 p-5 overflow-y-auto content-padding-bottom" id="sectionsScrollContainer">
+        <!-- PANEL DE GESTIÓN DE ARCHIVOS -->
+        <div class="grid grid-cols-2 gap-2 mb-6 p-3 bg-slate-100 rounded-lg border border-slate-200">
+            <button onclick="saveProject()" class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 rounded text-xs font-bold transition-colors">
+                <i class="fas fa-save"></i> Guardar Proyecto
+            </button>
+            <label class="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 py-2 rounded text-xs font-bold transition-colors text-center cursor-pointer">
+                <i class="fas fa-folder-open"></i> Cargar Archivo
+                <input type="file" id="loadProjectInput" class="hidden" accept=".json">
+            </label>
+        </div>
+
+        <p class="text-[10px] text-gray-400 uppercase font-bold mb-4 tracking-widest text-center">Estructura del Catálogo</p>
+
+        <div id="sectionsContainer" class="space-y-6">
+
+            <!-- 0. CONEXIÓN A GOOGLE SHEETS -->
+            <div class="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm section-card" data-type="db_import">
+                <h2 class="text-sm font-bold text-blue-800 uppercase mb-3 border-b border-blue-200 pb-2 flex items-center">
+                    <i class="fas fa-database mr-2"></i> Base de Datos (Importación)
+                </h2>
+                <div class="space-y-3">
+                    <p class="text-[10px] text-gray-600">Conecta con tu Google Sheets para importar registros de obra.</p>
+                    <input type="text" id="apiUrl" placeholder="URL del Web App (doGet)" class="w-full text-xs p-2 border rounded">
+                    <button onclick="fetchDatabase()" class="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs py-2 rounded font-bold transition-colors">
+                        <i class="fas fa-cloud-download-alt mr-1"></i> Cargar Obras desde BD
+                    </button>
+                    
+                    <div id="dbFilters" class="hidden space-y-3 mt-3 pt-3 border-t border-blue-200">
+                        <p class="text-xs font-bold text-slate-700 uppercase">Filtros de Importación</p>
+                        <select id="filterAutor" class="w-full text-xs p-2 border rounded">
+                            <option value="">Todos los Autores</option>
+                        </select>
+                        <select id="filterTipo" class="w-full text-xs p-2 border rounded">
+                            <option value="">Todos los Tipos de Obra</option>
+                        </select>
+                        <input type="text" id="filterTags" placeholder="Tags (separados por coma. ej: abstracto, 2024)" class="w-full text-xs p-2 border rounded">
+                        <div class="flex gap-2">
+                            <input type="number" id="filterPrecioMin" placeholder="Precio Min ($)" class="w-1/2 text-xs p-2 border rounded">
+                            <input type="number" id="filterPrecioMax" placeholder="Precio Max ($)" class="w-1/2 text-xs p-2 border rounded">
+                        </div>
+                        <button onclick="applyDatabaseFilters()" class="w-full bg-green-600 hover:bg-green-700 text-white text-xs py-2 rounded font-bold transition-colors">
+                            <i class="fas fa-filter mr-1"></i> Aplicar Filtros e Importar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 1. IMAGEN COMPLETA -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm section-card" data-type="fullimg">
+                <h2 class="text-sm font-bold text-slate-700 uppercase mb-3 border-b pb-2 flex items-center">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs mr-2">1</span>
+                    <span class="flex-1 text-[10px] sm:text-xs">Imagen Completa / Separador</span>
+                    <div class="flex gap-1 ml-2">
+                        <button onclick="moveSection(this, -1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-up"></i></button>
+                        <button onclick="moveSection(this, 1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-down"></i></button>
+                    </div>
+                </h2>
+                <div class="space-y-3">
+                    <p class="text-[10px] text-gray-500 italic">Esta imagen ocupará toda la hoja sin márgenes.</p>
+                    <div class="flex items-center gap-2">
+                        <label class="flex-1 cursor-pointer bg-white border border-gray-300 rounded p-3 text-center hover:bg-gray-50">
+                            <i class="fas fa-file-image text-2xl text-slate-300 mb-2 block"></i>
+                            <span id="fullImgLabel" class="text-xs font-bold text-slate-500">Seleccionar Imagen</span>
+                            <input type="file" id="fullImageInput" class="hidden" accept="image/*">
+                        </label>
+                        <button onclick="removeFullImage()" id="removeFullImgBtn" class="hidden p-3 bg-red-50 text-red-500 rounded border border-red-200 hover:bg-red-100">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!--2. PORTADA TEXTO -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm section-card" data-type="cover">
+                <h2 class="text-sm font-bold text-slate-700 uppercase mb-3 border-b pb-2 flex items-center">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs mr-2">2</span>
+                    <span class="flex-1 text-[10px] sm:text-xs">Portada (Texto)</span>
+                    <div class="flex gap-1 ml-2">
+                        <button onclick="moveSection(this, -1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-up"></i></button>
+                        <button onclick="moveSection(this, 1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-down"></i></button>
+                        <button onclick="toggleContent('coverParams')" class="p-1 hover:text-black text-gray-400"><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                </h2>
+                <div id="coverParams" class="space-y-3">
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Título Global</label>
+                        <input type="text" id="artistName" value="" placeholder="CATÁLOGO GENERAL" class="w-full text-xs p-2 border rounded outline-none uppercase font-serif-pdf text-center">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase flex justify-between">
+                            Tamaño Título <span id="titleSizeValue" class="text-slate-900 font-bold">32</span>
+                        </label>
+                        <input type="range" id="titleSize" min="20" max="80" value="32" class="w-full">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Subtítulo</label>
+                        <input type="text" id="catalogSubtitle" value="OBRA GENERAL" class="w-full text-[10px] p-2 border rounded outline-none uppercase text-center tracking-widest">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-700 uppercase flex items-center gap-2">Fecha / Versión</label>
+                        <input type="text" id="updateText" value="ACTUALIZACIÓN 2024" class="w-full text-xs p-2 border rounded outline-none uppercase bg-gray-100 text-center">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-700 uppercase flex items-center gap-2">Nota Legal</label>
+                        <textarea id="legalNote" rows="2" class="w-full text-[10px] p-2 border rounded outline-none text-center text-gray-500"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. INTRODUCCIÓN -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm section-card" data-type="intro">
+                <h2 class="text-sm font-bold text-slate-700 uppercase mb-3 border-b pb-2 flex items-center">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs mr-2">3</span>
+                    <span class="flex-1 text-[10px] sm:text-xs">Introducción</span>
+                    <div class="flex gap-1 ml-2">
+                        <button onclick="moveSection(this, -1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-up"></i></button>
+                        <button onclick="moveSection(this, 1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-down"></i></button>
+                        <button onclick="toggleContent('introParams')" class="p-1 hover:text-black text-gray-400"><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                </h2>
+                <div id="introParams" class="space-y-3 hidden">
+                    <p class="text-[10px] text-gray-500 italic">Deja en blanco para no incluir esta hoja.</p>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Título</label>
+                        <input type="text" id="introTitle" value="INTRODUCCIÓN" class="w-full text-xs p-2 border rounded outline-none font-serif-pdf uppercase">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Texto</label>
+                        <textarea id="introText" rows="6" class="w-full text-xs p-2 border rounded outline-none font-serif-pdf leading-relaxed text-justify"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. CURRICULUM -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm section-card" data-type="cv">
+                <h2 class="text-sm font-bold text-slate-700 uppercase mb-3 border-b pb-2 flex items-center">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs mr-2">4</span>
+                    <span class="flex-1 text-[10px] sm:text-xs">Semblanza / CV</span>
+                    <div class="flex gap-1 ml-2">
+                        <button onclick="moveSection(this, -1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-up"></i></button>
+                        <button onclick="moveSection(this, 1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-down"></i></button>
+                        <button onclick="toggleContent('cvParams')" class="p-1 hover:text-black text-gray-400"><i class="fas fa-chevron-down"></i></button>
+                    </div>
+                </h2>
+                <div id="cvParams" class="space-y-3 hidden">
+                    <p class="text-[10px] text-gray-500 italic">Deja en blanco para no incluir esta hoja.</p>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Título</label>
+                        <input type="text" id="cvTitle" value="SEMBLANZA" class="w-full text-xs p-2 border rounded outline-none font-serif-pdf uppercase">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 uppercase">Texto</label>
+                        <textarea id="cvText" rows="6" class="w-full text-xs p-2 border rounded outline-none font-serif-pdf leading-relaxed text-justify"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. OBRAS -->
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm section-card" data-type="works">
+                <h2 class="text-sm font-bold text-slate-700 uppercase mb-3 border-b pb-2 flex items-center">
+                    <span class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-xs mr-2">5</span>
+                    <span class="flex-1 text-[10px] sm:text-xs">Galería de Obras</span>
+                    <div class="flex gap-1 ml-2">
+                        <button onclick="moveSection(this, -1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-up"></i></button>
+                        <button onclick="moveSection(this, 1)" class="p-1 hover:text-black text-gray-400"><i class="fas fa-arrow-down"></i></button>
+                    </div>
+                </h2>
+                <label class="flex flex-col items-center justify-center w-full h-20 border-2 border-dashed border-gray-300 rounded cursor-pointer hover:bg-gray-50 group transition-colors mb-4">
+                    <div class="flex flex-col items-center justify-center pt-2 pb-2">
+                        <i class="fas fa-plus text-xl text-slate-400 group-hover:text-slate-600 mb-1"></i>
+                        <p class="text-xs text-slate-500 font-bold">Añadir Imágenes Manualmente</p>
+                    </div>
+                    <input type="file" id="imageInput" class="hidden" multiple accept="image/*">
+                </label>
+                
+                <div id="artworkList" class="space-y-3">
+                    <p class="text-xs text-center text-gray-400 italic py-4" id="emptyMsg">No hay obras añadidas.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="hidden md:block p-4 bg-white border-t border-gray-200 shrink-0">
+        <button onclick="generatePDF()" class="w-full bg-slate-900 hover:bg-black text-white py-3 rounded-lg font-bold tracking-widest text-sm transition-colors flex justify-center items-center">
+            <i class="fas fa-file-pdf mr-2"></i> EXPORTAR CATÁLOGO
+        </button>
+    </div>
+</aside>
+
+<!-- SECCIÓN DERECHA: VISTA PREVIA -->
+<main id="previewPanel" class="hidden md:block w-full md:flex-1 bg-gray-300 md:h-full md:overflow-y-auto p-4 lg:p-10 relative">
+    <div class="max-w-[500px] mx-auto content-padding-bottom" id="previewContainer"></div>
+</main>
+
+<!-- BOTÓN FLOTANTE MÓVIL -->
+<div class="mobile-fab-container md:hidden">
+    <button onclick="generatePDF()" id="mobileGenerateBtn" class="w-full bg-slate-900 active:bg-black text-white py-3 rounded-lg font-bold tracking-widest text-sm shadow-lg flex justify-center items-center">
+        <i class="fas fa-file-download mr-2"></i> DESCARGAR PDF
+    </button>
+</div>
+
+<!-- Loader -->
+<div id="loader" class="fixed inset-0 loading-overlay hidden z-50 flex items-center justify-center flex-col">
+    <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-slate-900 mb-4"></div>
+    <h3 class="text-xl font-serif-pdf text-slate-900 font-bold text-center" id="loaderText">Procesando...</h3>
+</div>
+
+<script>
+let artworks = [];
+let dbRegistrosObra = []; // Almacena los registros cargados de Google Sheets
+let fullPageImage = null; // Imagen de hoja completa
+const { jsPDF } = window.jspdf;
+const LOGO_PATH = 'rtbrok_logo.png';
+const AVAILABILITY_TEXT = "TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CONFIRMACIÓN";
+
+const imageInput = document.getElementById('imageInput');
+const fullImageInput = document.getElementById('fullImageInput');
+const loadProjectInput = document.getElementById('loadProjectInput');
+const artworkList = document.getElementById('artworkList');
+const previewContainer = document.getElementById('previewContainer');
+const emptyMsg = document.getElementById('emptyMsg');
+
+// Inputs mapeados
+const inputs = {
+    artistName: document.getElementById('artistName'),
+    titleSize: document.getElementById('titleSize'),
+    subtitle: document.getElementById('catalogSubtitle'),
+    updateText: document.getElementById('updateText'),
+    legalNote: document.getElementById('legalNote'),
+    introTitle: document.getElementById('introTitle'),
+    introText: document.getElementById('introText'),
+    cvTitle: document.getElementById('cvTitle'),
+    cvText: document.getElementById('cvText')
+};
+
+// Listeners
+Object.keys(inputs).forEach(key => {
+    inputs[key].addEventListener('input', () => {
+        if (key === 'titleSize') {
+            document.getElementById('titleSizeValue').innerText = inputs[key].value;
+        }
+        updatePreview();
+    });
+});
+
+imageInput.addEventListener('change', handleImageUpload);
+fullImageInput.addEventListener('change', handleFullImageUpload);
+loadProjectInput.addEventListener('change', loadProject);
+
+// --- FUNCIÓN MEJORADA PARA CONVERTIR URL DE GOOGLE DRIVE A FORMATO COMPATIBLE CON CORS ---
+function convertGoogleDriveUrl(url) {
+    if (!url) return null;
+    
+    // Extraer el ID del archivo de Google Drive
+    let fileId = null;
+    
+    // Patrón 1: /d/ID/
+    const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) {
+        fileId = driveMatch[1];
+    }
+    
+    // Patrón 2: id=ID
+    const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) {
+        fileId = idMatch[1];
+    }
+    
+    // Patrón 3: file/d/ID
+    const fileMatch = url.match(/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileMatch && fileMatch[1]) {
+        fileId = fileMatch[1];
+    }
+    
+    if (fileId) {
+        // Usar el dominio lh3.googleusercontent.com que tiene mejor soporte CORS
+        // Este es el dominio que Google usa internamente para imágenes accesibles
+        return `https://lh3.googleusercontent.com/d/${fileId}`;
+    }
+    
+    return url;
+}
+
+// --- NUEVA FUNCIÓN: Cargar imagen externa usando fetch para evitar CORS ---
+async function loadExternalImageAsBase64(url) {
+    if (!url) return null;
+    
+    // Si ya es data URL, devolver directamente
+    if (url.startsWith('data:')) {
+        return url;
+    }
+    
+    // Convertir URL de Google Drive si es necesario
+    const convertedUrl = convertGoogleDriveUrl(url);
+    
+    try {
+        // Usar fetch para obtener la imagen como blob (esto evita las restricciones CORS de canvas)
+        const response = await fetch(convertedUrl);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const blob = await response.blob();
+        
+        // Verificar que sea una imagen
+        if (!blob.type.startsWith('image/')) {
+            console.warn('El contenido no es una imagen:', blob.type);
+            return null;
+        }
+        
+        // Convertir blob a base64
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error('Error al cargar imagen externa con fetch:', error);
+        
+        // Fallback: intentar con el método tradicional de Image (puede fallar por CORS)
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                try {
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                } catch (e) {
+                    console.warn('Fallback con canvas también falló por CORS', e);
+                    resolve(null);
+                }
+            };
+            img.onerror = function() {
+                console.error('Fallback: No se pudo cargar la imagen');
+                resolve(null);
+            };
+            img.src = convertedUrl;
+        });
+    }
+}
+
+// --- INTEGRACIÓN BASE DE DATOS (GOOGLE SHEETS) ---
+async function fetchDatabase() {
+    const url = document.getElementById('apiUrl').value.trim();
+    if (!url) {
+        alert("Por favor, ingresa la URL de tu Web App de Google Apps Script.");
+        return;
+    }
+    
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loaderText');
+    loaderText.innerText = "Conectando con la base de datos...";
+    loader.classList.remove('hidden');
+
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        if (data.registrosObra && Array.isArray(data.registrosObra)) {
+            dbRegistrosObra = data.registrosObra;
+            populateFilters();
+            document.getElementById('dbFilters').classList.remove('hidden');
+            alert(`Conexión exitosa. Se han cargado ${dbRegistrosObra.length} obras en memoria. Configura tus filtros y presiona "Aplicar Filtros e Importar".`);
+        } else {
+            throw new Error("La respuesta de la API no contiene el arreglo 'registrosObra'.");
+        }
+    } catch (error) {
+        console.error("Error al cargar desde DB:", error);
+        alert("Ocurrió un error al cargar la base de datos. Verifica la URL y que el script esté publicado correctamente.");
+    } finally {
+        loader.classList.add('hidden');
+    }
+}
+
+function populateFilters() {
+    const autores = [...new Set(dbRegistrosObra.map(o => (o.autor || "Desconocido").trim()))].filter(Boolean).sort();
+    const selAutor = document.getElementById('filterAutor');
+    selAutor.innerHTML = '<option value="">Todos los Autores</option>' + autores.map(a => `<option value="${a}">${a}</option>`).join('');
+
+    const tipos = [...new Set(dbRegistrosObra.map(o => (o.tipo_obra || "No definido").trim()))].filter(Boolean).sort();
+    const selTipo = document.getElementById('filterTipo');
+    selTipo.innerHTML = '<option value="">Todos los Tipos de Obra</option>' + tipos.map(t => `<option value="${t}">${t}</option>`).join('');
+}
+
+async function applyDatabaseFilters() {
+    const fAutor = document.getElementById('filterAutor').value;
+    const fTipo = document.getElementById('filterTipo').value;
+    const fTags = document.getElementById('filterTags').value.toLowerCase().split(',').map(t => t.trim()).filter(Boolean);
+    const fPMin = parseFloat(document.getElementById('filterPrecioMin').value) || 0;
+    const fPMax = parseFloat(document.getElementById('filterPrecioMax').value) || Infinity;
+
+    const obrasFiltradas = dbRegistrosObra.filter(obra => {
+        const autor = (obra.autor || "Desconocido").trim();
+        const tipo = (obra.tipo_obra || "No definido").trim();
+        const precio = parseFloat(obra.precio_lista) || 0;
+        
+        if (fAutor && autor !== fAutor) return false;
+        if (fTipo && tipo !== fTipo) return false;
+        if (precio < fPMin || precio > fPMax) return false;
+        
+        if (fTags.length > 0) {
+            let obraTags = [];
+            if (Array.isArray(obra.tags)) {
+                obraTags = obra.tags.map(t => typeof t === 'string' ? t.toLowerCase() : '');
+            } else if (typeof obra.tags === 'string') {
+                obraTags = obra.tags.toLowerCase().split(',').map(t => t.trim());
+            }
+            const tieneTag = fTags.some(filtroTag => obraTags.includes(filtroTag));
+            if (!tieneTag) return false;
+        }
+        
+        return true;
+    });
+
+    if (obrasFiltradas.length === 0) {
+        alert("Ninguna obra coincide con los filtros aplicados.");
+        return;
+    }
+
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loaderText');
+    loaderText.innerText = "Cargando imágenes desde la base de datos...";
+    loader.classList.remove('hidden');
+
+    try {
+        const nuevosArtworks = [];
+        
+        for (let i = 0; i < obrasFiltradas.length; i++) {
+            const obra = obrasFiltradas[i];
+            loaderText.innerText = `Procesando obra ${i + 1} de ${obrasFiltradas.length}...`;
+            
+            let imageBase64 = null;
+            if (obra.adjuntos && obra.adjuntos.length > 0) {
+                const adj = obra.adjuntos[0];
+                const rawUrl = typeof adj === 'string' ? adj : (adj.url || '');
+                
+                // Cargar la imagen usando fetch para evitar CORS
+                if (rawUrl) {
+                    imageBase64 = await loadExternalImageAsBase64(rawUrl);
+                }
+            }
+            
+            if (!imageBase64) {
+                imageBase64 = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" fill="%23f3f4f6"><rect width="100%" height="100%"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle">SIN IMAGEN EN BD</text></svg>';
+            }
+
+            const dimArr = [];
+            if (obra.alto) dimArr.push(obra.alto);
+            if (obra.ancho) dimArr.push(obra.ancho);
+            if (obra.largo) dimArr.push(obra.largo);
+            const dimensionStr = dimArr.length > 0 ? `${dimArr.join(' x ')} m` : "";
+
+            const precioStr = obra.precio_lista ? `$${Number(obra.precio_lista).toLocaleString('en-US')}` : "";
+
+            nuevosArtworks.push({
+                id: obra.id || (Date.now() + Math.random() + i),
+                image: imageBase64,
+                title: (obra.nombre_obra || "SIN TÍTULO").toUpperCase(),
+                artist: (obra.autor || "").toUpperCase(),
+                medium: (obra.tipo_obra || "").toUpperCase(),
+                dimensions: dimensionStr,
+                price: precioStr,
+                code: (obra.clave || ("CAT-" + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
+                isUnique: true
+            });
+        }
+
+        artworks = [...artworks, ...nuevosArtworks];
+        renderArtworkList();
+        updatePreview();
+        
+        alert(`Se han importado ${nuevosArtworks.length} obras exitosamente al catálogo.`);
+    } catch (error) {
+        console.error("Error al procesar imágenes:", error);
+        alert("Ocurrió un error al procesar algunas imágenes. Las obras se han agregado sin imágenes.");
+        
+        // Agregar obras sin imágenes como fallback
+        const nuevosArtworks = obrasFiltradas.map(obra => {
+            const dimArr = [];
+            if (obra.alto) dimArr.push(obra.alto);
+            if (obra.ancho) dimArr.push(obra.ancho);
+            if (obra.largo) dimArr.push(obra.largo);
+            const dimensionStr = dimArr.length > 0 ? `${dimArr.join(' x ')} m` : "";
+            const precioStr = obra.precio_lista ? `$${Number(obra.precio_lista).toLocaleString('en-US')}` : "";
+            
+            return {
+                id: obra.id || (Date.now() + Math.random()),
+                image: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" fill="%23f3f4f6"><rect width="100%" height="100%"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle">SIN IMAGEN EN BD</text></svg>',
+                title: (obra.nombre_obra || "SIN TÍTULO").toUpperCase(),
+                artist: (obra.autor || "").toUpperCase(),
+                medium: (obra.tipo_obra || "").toUpperCase(),
+                dimensions: dimensionStr,
+                price: precioStr,
+                code: (obra.clave || ("CAT-" + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
+                isUnique: true
+            };
+        });
+        artworks = [...artworks, ...nuevosArtworks];
+        renderArtworkList();
+        updatePreview();
+    } finally {
+        loader.classList.add('hidden');
+    }
+}
+
+// --- FUNCIONES DE GUARDADO Y CARGA (JSON LOCAL) ---
+function saveProject() {
+    const projectData = {
+        version: "1.0",
+        timestamp: new Date().toISOString(),
+        data: {
+            inputs: {},
+            artworks: artworks,
+            fullPageImage: fullPageImage,
+            sectionOrder: getSectionOrder()
+        }
+    };
+
+    Object.keys(inputs).forEach(key => {
+        projectData.data.inputs[key] = inputs[key].value;
+    });
+
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(projectData));
+    const downloadAnchorNode = document.createElement('a');
+    const fileName = `PROYECTO_${inputs.artistName.value.trim().replace(/\s+/g, '_') || 'CATALOGO'}.json`;
+    
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", fileName);
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+}
+
+function loadProject(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(event) {
+        try {
+            const project = JSON.parse(event.target.result);
+            if (!project.data) throw new Error("Formato inválido");
+            const data = project.data;
+
+            if (data.inputs) {
+                Object.keys(data.inputs).forEach(key => {
+                    if (inputs[key]) inputs[key].value = data.inputs[key];
+                });
+            }
+            if (inputs.titleSize) document.getElementById('titleSizeValue').innerText = inputs.titleSize.value;
+
+            if (data.artworks) {
+                artworks = data.artworks;
+                renderArtworkList();
+            }
+
+            if (data.fullPageImage) {
+                fullPageImage = data.fullPageImage;
+                document.getElementById('removeFullImgBtn').classList.remove('hidden');
+                document.getElementById('fullImgLabel').innerText = "Imagen Cargada";
+            } else {
+                removeFullImage();
+            }
+
+            if (data.sectionOrder) {
+                const container = document.getElementById('sectionsContainer');
+                data.sectionOrder.forEach(type => {
+                    const section = container.querySelector(`.section-card[data-type="${type}"]`);
+                    if (section) container.appendChild(section);
+                });
+            }
+
+            updatePreview();
+            alert("Proyecto cargado correctamente.");
+        } catch (error) {
+            console.error(error);
+            alert("Error al cargar el archivo. Asegúrate de que es un archivo .json válido generado por ArtTools.");
+        }
+    };
+
+    reader.readAsText(file);
+    e.target.value = '';
+}
+
+// --- FUNCIONES UI ---
+function toggleContent(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('hidden');
+}
+
+function switchTab(tab) {
+    const editor = document.getElementById('editorPanel');
+    const preview = document.getElementById('previewPanel');
+    const tabE = document.getElementById('tabEditor');
+    const tabP = document.getElementById('tabPreview');
+
+    if (tab === 'editor') {
+        editor.classList.remove('hidden');
+        preview.classList.add('hidden');
+        tabE.className = "flex-1 py-2 text-center font-bold border-b-2 border-white";
+        tabP.className = "flex-1 py-2 text-center text-gray-400 border-b-2 border-transparent";
+    } else {
+        editor.classList.add('hidden');
+        preview.classList.remove('hidden');
+        tabP.className = "flex-1 py-2 text-center font-bold border-b-2 border-white";
+        tabE.className = "flex-1 py-2 text-center text-gray-400 border-b-2 border-transparent";
+    }
+}
+
+// --- REORDENAMIENTO ---
+function moveSection(btn, direction) {
+    const section = btn.closest('.section-card');
+    const container = document.getElementById('sectionsContainer');
+
+    if (direction === -1) {
+        if (section.previousElementSibling) {
+            container.insertBefore(section, section.previousElementSibling);
+        }
+    } else {
+        if (section.nextElementSibling) {
+            container.insertBefore(section.nextElementSibling, section);
+        }
+    }
+    updatePreview();
+}
+
+function getSectionOrder() {
+    const container = document.getElementById('sectionsContainer');
+    const sections = container.querySelectorAll('.section-card');
+    return Array.from(sections).map(sec => sec.getAttribute('data-type'));
+}
+
+// --- MANEJO DE IMÁGENES MANUALES ---
+function handleFullImageUpload(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            fullPageImage = event.target.result;
+            document.getElementById('removeFullImgBtn').classList.remove('hidden');
+            document.getElementById('fullImgLabel').innerText = "Imagen Cargada";
+            updatePreview();
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeFullImage() {
+    fullPageImage = null;
+    fullImageInput.value = '';
+    document.getElementById('removeFullImgBtn').classList.add('hidden');
+    document.getElementById('fullImgLabel').innerText = "Seleccionar Imagen";
+    updatePreview();
+}
+
+function handleImageUpload(e) {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) emptyMsg.style.display = 'none';
+
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const artwork = {
+                id: Date.now() + Math.random(),
+                image: event.target.result,
+                title: "TÍTULO DE LA OBRA",
+                artist: "",
+                medium: "ÓLEO SOBRE TELA",
+                dimensions: "120 x 100 CM",
+                price: "",
+                code: "CAT-" + Math.floor(1000 + Math.random() * 9000),
+                isUnique: false
+            };
+            artworks.push(artwork);
+            renderArtworkList();
+            updatePreview();
+        };
+        reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+}
+
+function renderArtworkList() {
+    artworkList.innerHTML = '';
+    if (artworks.length === 0) {
+        artworkList.appendChild(emptyMsg);
+        emptyMsg.style.display = 'block';
+        return;
+    }
+    
+    emptyMsg.style.display = 'none';
+    artworks.forEach((art, index) => {
+        const div = document.createElement('div');
+        div.className = 'bg-white p-3 rounded border border-gray-200 shadow-sm mb-3';
+        div.innerHTML = `
+            <div class="flex gap-3 mb-2 items-start">
+                <img src="${art.image}" crossorigin="anonymous" class="w-16 h-16 object-cover rounded border bg-gray-100" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'100\\' height=\\'100\\'><rect width=\\'100\\' height=\\'100\\' fill=\\'%23eee\\'/></svg>'">
+                <div class="flex-1 space-y-2">
+                    <input type="text" placeholder="TÍTULO" value="${art.title}" oninput="updateArtwork('${art.id}', 'title', this.value.toUpperCase())" class="w-full text-xs p-1 border rounded font-bold outline-none uppercase font-serif-pdf">
+                    <input type="text" placeholder="ARTISTA" value="${art.artist}" oninput="updateArtwork('${art.id}', 'artist', this.value.toUpperCase())" class="w-full text-[10px] p-1 border rounded outline-none uppercase italic text-blue-600 bg-blue-50">
+                    <div class="grid grid-cols-2 gap-1">
+                        <input type="text" placeholder="TÉCNICA" value="${art.medium}" oninput="updateArtwork('${art.id}', 'medium', this.value.toUpperCase())" class="text-[9px] p-1 border rounded outline-none uppercase">
+                        <input type="text" placeholder="MEDIDAS" value="${art.dimensions}" oninput="updateArtwork('${art.id}', 'dimensions', this.value.toUpperCase())" class="text-[9px] p-1 border rounded outline-none uppercase">
+                    </div>
+                    <input type="text" placeholder="PRECIO" aria-label="Precio de la obra" value="${art.price}" oninput="updateArtwork('${art.id}', 'price', this.value.toUpperCase())" class="text-[9px] p-1 border rounded outline-none uppercase mt-1 w-full">
+                </div>
+            </div>
+            <div class="flex justify-between items-center text-xs border-t pt-2 mt-2">
+                <div class="flex items-center gap-2">
+                    <input type="text" value="${art.code}" oninput="updateArtwork('${art.id}', 'code', this.value.toUpperCase())" class="text-[9px] p-1 border rounded bg-gray-50 outline-none w-16">
+                    <label class="flex items-center text-[9px] text-gray-500 cursor-pointer">
+                        <input type="checkbox" ${art.isUnique ? 'checked' : ''} onchange="updateArtwork('${art.id}', 'isUnique', this.checked)" class="mr-1">
+                        Obra única
+                    </label>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="moveArtwork(${index}, -1)" class="text-gray-400 hover:text-black"><i class="fas fa-chevron-up"></i></button>
+                    <button onclick="moveArtwork(${index}, 1)" class="text-gray-400 hover:text-black"><i class="fas fa-chevron-down"></i></button>
+                    <button onclick="deleteArtwork('${art.id}')" class="text-gray-300 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+        artworkList.appendChild(div);
+    });
+}
+
+function updateArtwork(id, field, value) {
+    const art = artworks.find(a => a.id == id);
+    if (art) { 
+        art[field] = value; 
+        updatePreview(); 
+    }
+}
+
+function deleteArtwork(id) {
+    artworks = artworks.filter(a => a.id != id);
+    renderArtworkList();
+    updatePreview();
+}
+
+function moveArtwork(index, direction) {
+    if (direction === -1 && index > 0) {
+        [artworks[index], artworks[index - 1]] = [artworks[index - 1], artworks[index]];
+    } else if (direction === 1 && index < artworks.length - 1) {
+        [artworks[index], artworks[index + 1]] = [artworks[index + 1], artworks[index]];
+    }
+    renderArtworkList(); 
+    updatePreview();
+}
+
+// --- RENDERIZADO DE VISTA PREVIA ---
+function updatePreview() {
+    previewContainer.innerHTML = '';
+    const sectionOrder = getSectionOrder();
+
+    sectionOrder.forEach(type => {
+        if (type === 'fullimg' && fullPageImage) renderFullImagePreview();
+        if (type === 'cover') renderCoverPreview();
+        if (type === 'intro' && inputs.introText.value.trim()) renderIntroPreview();
+        if (type === 'cv' && inputs.cvText.value.trim()) renderCvPreview();
+        if (type === 'works') renderWorksPreview();
+    });
+}
+
+function renderFullImagePreview() {
+    const page = document.createElement('div');
+    page.className = 'preview-page relative overflow-hidden';
+    page.innerHTML = `<img src="${fullPageImage}" class="absolute inset-0 w-full h-full object-cover">`;
+    previewContainer.appendChild(page);
+}
+
+function renderCoverPreview() {
+    const globalTitle = inputs.artistName.value.trim() || "CATÁLOGO";
+    const subVal = inputs.subtitle.value.trim() || "OBRA GENERAL";
+    const dateVal = inputs.updateText.value.trim();
+    const titleSize = inputs.titleSize.value + 'px';
+    const noteVal = inputs.legalNote.value.trim();
+
+    const cover = document.createElement('div');
+    cover.className = 'preview-page p-12 flex flex-col items-center justify-between text-center font-serif-pdf';
+    cover.innerHTML = `
+        <div class="absolute inset-0 flex items-center justify-center opacity-[0.08] grayscale z-0 overflow-hidden pointer-events-none">
+            <img src="${LOGO_PATH}" class="w-[85mm] max-w-none transform translate-y-[-52px]" onerror="this.style.display='none'">
+        </div>
+        
+        <div class="relative z-10 flex flex-col items-center w-full mt-24 mb-4">
+            <h1 class="tracking-[0.3em] mb-4 font-normal uppercase px-4" style="font-size: ${titleSize}; line-height: 1.1;">${globalTitle}</h1>
+            <h2 class="text-xs tracking-[0.4em] uppercase opacity-60">${subVal}</h2>
+        </div>
+        
+        <div class="w-full flex-1"></div>
+        
+        <div class="relative z-10 w-full flex flex-col items-center mt-4">
+            <p class="text-[10px] font-sans-pdf tracking-[0.2em] uppercase font-bold text-slate-800">${dateVal}</p>
+        </div>
+        <div class="relative z-10 w-full mb-8 mt-6">
+            <p class="text-[9px] text-gray-500 font-sans-pdf leading-relaxed max-w-[320px] mx-auto italic opacity-80">${noteVal}</p>
+        </div>
+    `;
+    previewContainer.appendChild(cover);
+}
+
+function renderIntroPreview() {
+    const globalTitle = inputs.artistName.value.trim() || "CATÁLOGO";
+    const introPage = document.createElement('div');
+    introPage.className = 'preview-page p-12 flex flex-col font-serif-pdf';
+    introPage.innerHTML = `
+        <div class="mt-8 mb-8">
+            <h3 class="text-xl tracking-widest uppercase border-b border-gray-200 pb-4 mb-6">${inputs.introTitle.value}</h3>
+            <div class="text-[11px] leading-6 text-justify whitespace-pre-wrap font-serif-pdf text-gray-800">${inputs.introText.value}</div>
+        </div>
+        <div class="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center text-[8px] text-gray-400 font-sans-pdf uppercase tracking-widest">
+            <span>${inputs.introTitle.value}</span>
+            <span>${globalTitle}</span>
+        </div>
+    `;
+    previewContainer.appendChild(introPage);
+}
+
+function renderCvPreview() {
+    const globalTitle = inputs.artistName.value.trim() || "CATÁLOGO";
+    const cvPage = document.createElement('div');
+    cvPage.className = 'preview-page p-12 flex flex-col font-serif-pdf';
+    cvPage.innerHTML = `
+        <div class="mt-8 mb-8">
+            <h3 class="text-xl tracking-widest uppercase border-b border-gray-200 pb-4 mb-6">${inputs.cvTitle.value}</h3>
+            <div class="text-[11px] leading-6 text-justify whitespace-pre-wrap font-serif-pdf text-gray-800">${inputs.cvText.value}</div>
+        </div>
+        <div class="mt-auto pt-4 border-t border-gray-100 flex justify-between items-center text-[8px] text-gray-400 font-sans-pdf uppercase tracking-widest">
+            <span>${inputs.cvTitle.value}</span>
+            <span>${globalTitle}</span>
+        </div>
+    `;
+    previewContainer.appendChild(cvPage);
+}
+
+function renderWorksPreview() {
+    const globalTitle = inputs.artistName.value.trim() || "CATÁLOGO";
+    const dateVal = inputs.updateText.value.trim();
+
+    artworks.forEach((art, i) => {
+        const currentArtist = art.artist.trim() || globalTitle;
+        const infoParts = [];
+        
+        if (art.isUnique) infoParts.push(`<span class="text-[9px] font-sans-pdf uppercase tracking-widest text-gray-400">Obra única</span>`);
+        if (art.medium && art.medium.trim()) infoParts.push(`<span class="text-[10px] font-sans-pdf uppercase tracking-wider">${art.medium}</span>`);
+        if (art.dimensions && art.dimensions.trim()) infoParts.push(`<span class="text-[10px] font-sans-pdf">${art.dimensions}</span>`);
+        if (art.price && art.price.trim()) infoParts.push(`<span class="text-[10px] font-sans-pdf uppercase tracking-wider">${art.price}</span>`);
+        if (art.code && art.code.trim()) infoParts.push(`<span class="text-[9px] font-sans-pdf bg-black text-white px-2 py-0.5 font-bold">${art.code}</span>`);
+
+        const infoMarkup = infoParts.map((part, index) => index ? `<span class="text-[9px] opacity-30">|</span> ${part}` : part).join(' ');
+
+        const page = document.createElement('div');
+        page.className = 'preview-page p-12 flex flex-col justify-between font-serif-pdf';
+        page.innerHTML = `
+            <div class="flex-1 flex items-center justify-center py-6">
+                <img src="${art.image}" class="max-h-[85%] max-w-full object-contain shadow-xl relative z-10" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'400\\' height=\\'400\\'><rect width=\\'100%\\' height=\\'100%\\' fill=\\'%23f3f4f6\\'/><text x=\\'50%\\' y=\\'50%\\' font-family=\\'Arial\\' font-size=\\'20\\' fill=\\'%239ca3af\\' text-anchor=\\'middle\\' dominant-baseline=\\'middle\\'>Error al cargar imagen</text></svg>'">
+            </div>
+            <div class="relative pt-8 flex flex-col items-center">
+                <div class="mb-4 relative z-10 text-right w-full">
+                    <p class="text-base tracking-tight leading-relaxed">
+                        <span class="font-bold">"${art.title}"</span>
+                        ${art.artist ? `<br><span class="text-xs opacity-60 font-sans-pdf uppercase tracking-widest">${art.artist}</span>` : ''}
+                    </p>
+                    <div class="mt-1 flex justify-end items-center gap-2">
+                        ${infoMarkup}
+                    </div>
+                </div>
+                <div class="flex justify-between items-baseline pt-2 font-sans-pdf text-[6px] text-gray-400 uppercase tracking-[0.2em] relative z-10 border-t border-gray-100 w-full">
+                    <p class="font-bold flex-1 text-left">${AVAILABILITY_TEXT}</p>
+                    <div class="flex items-center justify-center flex-1 px-2">
+                        <img src="${LOGO_PATH}" class="w-6 opacity-[0.1] grayscale" onerror="this.style.display='none'">
+                    </div>
+                    <p class="flex-1 text-right">${currentArtist} • ${dateVal} • PÁGINA ${i + 1}</p>
+                </div>
+            </div>
+        `;
+        previewContainer.appendChild(page);
+    });
+}
+
+// --- GENERACIÓN DE PDF ---
+async function generatePDF() {
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loaderText');
+    loaderText.innerText = "Exportando Catálogo...";
+    loader.classList.remove('hidden');
+
+    try {
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = 210;
+        const pageHeight = 297;
+
+        let logoData = null;
+        try {
+            const response = await fetch(LOGO_PATH);
+            const blob = await response.blob();
+            logoData = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        } catch (e) {}
+
+        const sectionOrder = getSectionOrder();
+        let firstPageCreated = false;
+        
+        const addPage = () => {
+            if (firstPageCreated) doc.addPage();
+            else firstPageCreated = true;
+        };
+
+        for (const type of sectionOrder) {
+            // IMAGEN COMPLETA
+            if (type === 'fullimg' && fullPageImage) {
+                addPage();
+                const img = new Image();
+                img.src = fullPageImage;
+                await new Promise(r => img.onload = r);
+
+                const imgRatio = img.width / img.height;
+                const pageRatio = pageWidth / pageHeight;
+                let renderW, renderH, offsetX, offsetY;
+                
+                if (imgRatio > pageRatio) {
+                    renderH = pageHeight;
+                    renderW = pageHeight * imgRatio;
+                    offsetX = (pageWidth - renderW) / 2;
+                    offsetY = 0;
+                } else {
+                    renderW = pageWidth;
+                    renderH = pageWidth / imgRatio;
+                    offsetX = 0;
+                    offsetY = (pageHeight - renderH) / 2;
+                }
+                doc.addImage(fullPageImage, 'JPEG', offsetX, offsetY, renderW, renderH);
+            }
+
+            // PORTADA
+            if (type === 'cover') {
+                addPage();
+                const globalTitle = inputs.artistName.value.trim() || "CATÁLOGO";
+                const dateVal = inputs.updateText.value.trim();
+                const pdfTitleSize = parseInt(inputs.titleSize.value) || 32;
+                const titleY = 110;
+
+                if (logoData) {
+                    doc.saveGraphicsState();
+                    doc.setGState(new doc.GState({ opacity: 0.08 }));
+                    doc.addImage(logoData, 'PNG', (pageWidth - 85) / 2, titleY - 60, 85, 85);
+                    doc.restoreGraphicsState();
+                }
+
+                doc.setTextColor(0);
+                doc.setFont("times", "normal");
+                doc.setFontSize(pdfTitleSize);
+                doc.text(globalTitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: "center" });
+                
+                doc.setFontSize(10);
+                doc.text(inputs.subtitle.value.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: "center" });
+                
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(10);
+                doc.text(dateVal.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: "center" });
+                
+                doc.setFont("helvetica", "italic");
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                const splitNote = doc.splitTextToSize(inputs.legalNote.value, 150);
+                doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: "center" });
+            }
+
+            // INTRODUCCIÓN
+            if (type === 'intro' && inputs.introText.value.trim()) {
+                addPage();
+                doc.setTextColor(0);
+                doc.setFont("times", "normal");
+                doc.setFontSize(14);
+                doc.text(inputs.introTitle.value.toUpperCase(), 25, 35);
+                
+                doc.setLineWidth(0.1);
+                doc.setDrawColor(200);
+                doc.line(25, 38, pageWidth - 25, 38);
+                
+                doc.setFontSize(11);
+                const splitText = doc.splitTextToSize(inputs.introText.value, pageWidth - 50);
+                doc.text(splitText, 25, 50);
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.line(25, pageHeight - 20, pageWidth - 25, pageHeight - 20);
+                doc.text(inputs.introTitle.value.toUpperCase(), 25, pageHeight - 15);
+                doc.text((inputs.artistName.value || "CATÁLOGO").toUpperCase(), pageWidth - 25, pageHeight - 15, { align: "right" });
+            }
+
+            // CV
+            if (type === 'cv' && inputs.cvText.value.trim()) {
+                addPage();
+                doc.setTextColor(0);
+                doc.setFont("times", "normal");
+                doc.setFontSize(14);
+                doc.text(inputs.cvTitle.value.toUpperCase(), 25, 35);
+                
+                doc.setLineWidth(0.1);
+                doc.setDrawColor(200);
+                doc.line(25, 38, pageWidth - 25, 38);
+                
+                doc.setFontSize(11);
+                const splitText = doc.splitTextToSize(inputs.cvText.value, pageWidth - 50);
+                doc.text(splitText, 25, 50);
+                
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.line(25, pageHeight - 20, pageWidth - 25, pageHeight - 20);
+                doc.text(inputs.cvTitle.value.toUpperCase(), 25, pageHeight - 15);
+                doc.text((inputs.artistName.value || "CATÁLOGO").toUpperCase(), pageWidth - 25, pageHeight - 15, { align: "right" });
+            }
+
+            // OBRAS
+            if (type === 'works') {
+                const globalTitle = inputs.artistName.value.trim() || "CATÁLOGO";
+                const dateVal = inputs.updateText.value.trim();
+
+                for (let i = 0; i < artworks.length; i++) {
+                    addPage();
+                    loaderText.innerText = `Procesando obra ${i + 1} de ${artworks.length}...`;
+                    const art = artworks[i];
+                    const currentArtist = art.artist.trim() || globalTitle;
+                    const margin = 25;
+                    
+                    // Ya tenemos la imagen en base64 desde la importación
+                    let imageData = art.image;
+                    
+                    if(imageData && imageData.startsWith('data:')) {
+                        try {
+                            doc.addImage(imageData, 'JPEG', margin, 45, 160, 180, undefined, 'FAST');
+                        } catch(err) {
+                            console.warn("Fallo al insertar la imagen en el pdf", err);
+                            doc.setFillColor(240, 240, 240);
+                            doc.rect(margin, 45, 160, 150, 'F');
+                            doc.setTextColor(150);
+                            doc.setFont("helvetica", "normal");
+                            doc.setFontSize(10);
+                            doc.text("IMAGEN NO DISPONIBLE", pageWidth / 2, 120, { align: "center" });
+                        }
+                    } else {
+                        // Dibujar un recuadro gris si no carga la imagen
+                        doc.setFillColor(240, 240, 240);
+                        doc.rect(margin, 45, 160, 150, 'F');
+                        doc.setTextColor(150);
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(10);
+                        doc.text("IMAGEN NO DISPONIBLE", pageWidth / 2, 120, { align: "center" });
+                    }
+
+                    if (logoData) {
+                        doc.saveGraphicsState();
+                        doc.setGState(new doc.GState({ opacity: 0.08 }));
+                        doc.addImage(logoData, 'PNG', (pageWidth - 20) / 2, pageHeight - 25, 20, 20);
+                        doc.restoreGraphicsState();
+                    }
+
+                    doc.setTextColor(0);
+                    doc.setFont("times", "bold");
+                    doc.setFontSize(14);
+                    doc.text(`"${art.title}"`, pageWidth - margin, 245, { align: "right" });
+                    
+                    if(art.artist) {
+                        doc.setFont("helvetica", "normal");
+                        doc.setFontSize(10);
+                        doc.setTextColor(120);
+                        doc.text(art.artist, pageWidth - margin, 252, { align: "right" });
+                    }
+
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(9);
+                    doc.setTextColor(80);
+                    let info = [];
+                    if (art.isUnique) info.push("OBRA ÚNICA");
+                    if (art.medium && art.medium.trim()) info.push(art.medium);
+                    if (art.dimensions && art.dimensions.trim()) info.push(art.dimensions);
+                    if (art.price && art.price.trim()) info.push(art.price);
+                    if (art.code && art.code.trim()) info.push(art.code);
+                    
+                    doc.text(info.join('  |  ').toUpperCase(), pageWidth - margin, 260, { align: "right" });
+
+                    doc.setDrawColor(200);
+                    doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+
+                    doc.setFontSize(5.5);
+                    doc.setTextColor(180);
+                    doc.setFont("helvetica", "bold");
+                    doc.text(AVAILABILITY_TEXT, margin, pageHeight - 14);
+                    
+                    const footerString = `${currentArtist.toUpperCase()}  •  ${dateVal}  •  PÁGINA ${i + 1}`;
+                    doc.text(footerString, pageWidth - margin, pageHeight - 14, { align: "right" });
+                }
+            }
+        }
+
+        doc.save(`CATALOGO_${inputs.artistName.value.trim().replace(/\s+/g, '_') || 'GENERAL'}.pdf`);
+    } catch (e) {
+        console.error("Error al generar PDF:", e);
+        alert("Ocurrió un error al generar el PDF. Revisa la consola para más detalles.");
+    } finally {
+        loader.classList.add('hidden');
+        loaderText.innerText = "Procesando...";
+    }
+}
+
+// Inicializar la vista previa
+updatePreview();
+</script>
+</body>
+</html>
