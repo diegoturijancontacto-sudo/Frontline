@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Asistente de Catálogos IA</title>
+
+<!-- Dependencias -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+<style>
+@import url('https://fonts.googleapis.com/css?family=Roboto:wght@300;400;700&display=swap');
+
+body {
+    background-color: #f8fafc;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Scrollbar personalizado para el chat */
+::-webkit-scrollbar {
+    width: 6px;
+}
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+.chat-bubble {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.typing-dot {
+    animation: typing 1.4s infinite ease-in-out;
+    fill: currentColor;
+}
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+@keyframes typing {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+
+<!-- App Header -->
+<header class="bg-slate-900 text-white p-4 shadow-md z-10 flex items-center justify-between shrink-0">
+    <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shadow-inner">
+            <i class="fas fa-robot text-xl"></i>
+        </div>
+        <div>
+            <h1 class="font-bold tracking-wide">ArtTools Curator AI</h1>
+            <p class="text-[10px] text-blue-200 uppercase tracking-widest" id="dbStatusText">Conectando a base de datos...</p>
+        </div>
+    </div>
+    <div id="connectionDot" class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse"></div>
+</header>
+
+<!-- Chat Area -->
+<main class="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4" id="chatContainer">
+    <!-- El historial del chat se insertará aquí -->
+</main>
+
+<!-- Input Area -->
+<footer class="bg-white p-4 border-t border-slate-200 shrink-0">
+    <div class="max-w-4xl mx-auto flex gap-2 relative">
+        <input type="text" id="chatInput" disabled
+            class="flex-1 bg-slate-50 border border-slate-300 text-sm rounded-full px-6 py-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
+            placeholder="Cargando base de datos..." 
+            onkeypress="handleKeyPress(event)">
+        <button id="sendBtn" disabled onclick="handleSend()" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-14 h-14 flex items-center justify-center transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+            <i class="fas fa-paper-plane"></i>
+        </button>
+    </div>
+</footer>
+
+<!-- Full Screen Loader para Generación PDF -->
+<div id="pdfLoader" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center hidden">
+    <i class="fas fa-palette text-5xl text-blue-600 mb-4 animate-bounce"></i>
+    <div class="text-xl font-bold text-slate-800 tracking-wider mb-2">GENERANDO CATÁLOGO</div>
+    <div id="pdfLoaderText" class="text-sm text-slate-500 font-medium">Procesando imágenes...</div>
+    <div class="w-64 h-2 bg-slate-200 rounded-full mt-4 overflow-hidden">
+        <div id="pdfProgressBar" class="h-full bg-blue-600 w-0 transition-all duration-300"></div>
+    </div>
+</div>
+
+<script>
+/**
+ * CONFIGURACIÓN
+ */
+// El entorno inyecta la clave de Gemini en la variable apiKey. 
+// Si corres este HTML de forma local, reemplaza la cadena vacía con tu clave: "AIzaSyBYZzPAGzCoRf1Z3v4spUsRQQmPVsUfwFY"
+const apiKey = ""; 
+const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec";
+const LOGO_PATH = 'rtbrok_logo.png';
+const AVAILABILITY_TEXT = "TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CONFIRMACIÓN";
+const { jsPDF } = window.jspdf;
+
+// Estado de la App
+let dbRegistrosObra = [];
+let chatHistory = [];
+let isTyping = false;
+
+// Elementos DOM
+const chatContainer = document.getElementById('chatContainer');
+const chatInput = document.getElementById('chatInput');
+const sendBtn = document.getElementById('sendBtn');
+const dbStatusText = document.getElementById('dbStatusText');
+const connectionDot = document.getElementById('connectionDot');
+const pdfLoader = document.getElementById('pdfLoader');
+const pdfLoaderText = document.getElementById('pdfLoaderText');
+const pdfProgressBar = document.getElementById('pdfProgressBar');
+
+/**
+ * INICIALIZACIÓN: Cargar DB al arrancar
+ */
+window.onload = async () => {
+    try {
+        const response = await fetch(APP_SCRIPT_URL);
+        const data = await response.json();
+        
+        if (data.registrosObra && Array.isArray(data.registrosObra)) {
+            dbRegistrosObra = data.registrosObra;
+            
+            // Actualizar UI
+            dbStatusText.innerText = `${dbRegistrosObra.length} Obras en memoria`;
+            connectionDot.classList.replace('bg-yellow-400', 'bg-green-500');
+            connectionDot.classList.remove('animate-pulse');
+            chatInput.disabled = false;
+            sendBtn.disabled = false;
+            chatInput.placeholder = "Pídele a Gemini que genere un catálogo (ej: obras de técnica mixta)...";
+
+            // Obtener algunos autores para el mensaje de bienvenida
+            const autores = [...new Set(dbRegistrosObra.map(o => (o.autor || "").trim()))].filter(Boolean);
+            const muestraAutores = autores.slice(0, 3).join(', ');
+
+            appendMessage('assistant', `¡Hola! Soy tu asistente curador. He conectado exitosamente con tu base de datos y cargué **${dbRegistrosObra.length} obras**. Tenemos piezas de artistas como ${muestraAutores}... \n\n¿Qué tipo de catálogo te gustaría generar hoy? Puedes pedirme que filtre por autor, técnica, palabras clave o rango de precio.`);
+        } else {
+            throw new Error("Formato de datos no válido desde Apps Script.");
+        }
+    } catch (error) {
+        console.error("Error BD:", error);
+        dbStatusText.innerText = "Error de conexión";
+        connectionDot.classList.replace('bg-yellow-400', 'bg-red-500');
+        appendMessage('assistant', "Hubo un problema al conectar con tu base de datos (Google Sheets). Por favor, verifica la URL o recarga la página.");
+    }
+};
+
+/**
+ * MANEJO DEL CHAT
+ */
+function handleKeyPress(e) {
+    if (e.key === 'Enter') handleSend();
+}
+
+async function handleSend() {
+    const text = chatInput.value.trim();
+    if (!text || isTyping) return;
+
+    // Mostrar mensaje del usuario
+    appendMessage('user', text);
+    chatInput.value = '';
+    
+    // Preparar historial
+    chatHistory.push({ role: 'user', text: text });
+    
+    // Llamar a Gemini
+    await processGeminiRequest();
+}
+
+function appendMessage(role, text) {
+    const isUser = role === 'user';
+    const wrapper = document.createElement('div');
+    wrapper.className = `flex w-full ${isUser ? 'justify-end' : 'justify-start'} chat-bubble`;
+
+    // Formatear markdown básico (negritas)
+    const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+
+    const bubble = `
+        <div class="flex gap-3 max-w-[85%] md:max-w-[70%] ${isUser ? 'flex-row-reverse' : 'flex-row'}">
+            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${isUser ? 'bg-slate-200 text-slate-600' : 'bg-blue-600 text-white'}">
+                <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} text-sm"></i>
+            </div>
+            <div class="p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${isUser ? 'bg-slate-800 text-white rounded-tr-sm' : 'bg-white border border-slate-100 text-slate-700 rounded-tl-sm'}">
+                ${formattedText}
+            </div>
+        </div>
+    `;
+    wrapper.innerHTML = bubble;
+    chatContainer.appendChild(wrapper);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function showTypingIndicator() {
+    isTyping = true;
+    chatInput.disabled = true;
+    sendBtn.disabled = true;
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'typingIndicator';
+    wrapper.className = `flex w-full justify-start chat-bubble`;
+    wrapper.innerHTML = `
+        <div class="flex gap-3 max-w-[85%] flex-row">
+            <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+                <i class="fas fa-robot text-sm"></i>
+            </div>
+            <div class="p-4 rounded-2xl bg-white border border-slate-100 rounded-tl-sm shadow-sm flex items-center justify-center gap-1">
+                <svg width="24" height="6" viewBox="0 0 24 6" class="text-slate-400">
+                    <circle cx="3" cy="3" r="3" class="typing-dot" />
+                    <circle cx="12" cy="3" r="3" class="typing-dot" />
+                    <circle cx="21" cy="3" r="3" class="typing-dot" />
+                </svg>
+            </div>
+        </div>
+    `;
+    chatContainer.appendChild(wrapper);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function removeTypingIndicator() {
+    isTyping = false;
+    chatInput.disabled = false;
+    sendBtn.disabled = false;
+    chatInput.focus();
+    const indicator = document.getElementById('typingIndicator');
+    if (indicator) indicator.remove();
+}
+
+/**
+ * INTEGRACIÓN CON GEMINI
+ */
+async function processGeminiRequest() {
+    showTypingIndicator();
+
+    const actualApiKey = typeof __env__ !== 'undefined' && __env__.GEMINI_API_KEY ? __env__.GEMINI_API_KEY : apiKey;
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${actualApiKey}`;
+
+    const systemPrompt = `Eres un asistente experto en arte y curaduría. Tu objetivo es interactuar con el usuario para ayudarle a generar un catálogo de arte en formato PDF a partir de una base de datos.
+    Analiza la solicitud del usuario. Si está pidiendo un catálogo (ej: "hazme un catálogo...", "quiero ver obras de...", "filtra por..."), extrae los parámetros de búsqueda.
+    Siempre debes responder con un JSON estructurado que siga el esquema definido, conteniendo tu respuesta conversacional y los filtros detectados.`;
+
+    // Preparar el historial para Gemini
+    const contents = chatHistory.map(msg => ({
+        role: msg.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: msg.text }]
+    }));
+
+    const payload = {
+        contents: contents,
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: "OBJECT",
+                properties: {
+                    mensaje: { type: "STRING", description: "Tu respuesta conversacional en lenguaje natural. Sé amable y profesional." },
+                    generar_catalogo: { type: "BOOLEAN", description: "True si el usuario quiere que se genere un catálogo, False si solo es charla." },
+                    filtros: {
+                        type: "OBJECT",
+                        properties: {
+                            autor: { type: "STRING", description: "Nombre del autor a buscar (coincidencia parcial o exacta)." },
+                            tipo_obra: { type: "STRING", description: "Técnica o tipo (ej. óleo, escultura, mixta)." },
+                            tags: { type: "ARRAY", items: { type: "STRING" }, description: "Palabras clave adicionales." },
+                            precioMin: { type: "NUMBER" },
+                            precioMax: { type: "NUMBER" }
+                        }
+                    },
+                    catalogo_info: {
+                        type: "OBJECT",
+                        properties: {
+                            titulo: { type: "STRING", description: "Título sugerido para el PDF (ej. CATÁLOGO GENERAL, OBRAS SELECTAS)." },
+                            subtitulo: { type: "STRING", description: "Subtítulo sugerido basado en la petición." },
+                            intro: { type: "STRING", description: "Un breve texto introductorio curatorial para el catálogo, si aplica." }
+                        }
+                    }
+                },
+                required: ["mensaje", "generar_catalogo"]
+            }
+        }
+    };
+
+    try {
+        const response = await fetch(GEMINI_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        const data = await response.json();
+        const resultText = data.candidates[0].content.parts[0].text;
+        const resultJSON = JSON.parse(resultText);
+
+        removeTypingIndicator();
+        
+        // Mostrar respuesta de Gemini
+        appendMessage('assistant', resultJSON.mensaje);
+        chatHistory.push({ role: 'assistant', text: resultJSON.mensaje });
+
+        // Evaluar si se debe generar el catálogo
+        if (resultJSON.generar_catalogo && resultJSON.filtros && resultJSON.catalogo_info) {
+            await executeCatalogGeneration(resultJSON.filtros, resultJSON.catalogo_info);
+        }
+
+    } catch (error) {
+        removeTypingIndicator();
+        console.error("Error Gemini:", error);
+        appendMessage('assistant', "Lo siento, tuve un problema al procesar tu solicitud con el servidor de IA. Asegúrate de que la clave de API (apiKey) esté configurada correctamente.");
+    }
+}
+
+/**
+ * LÓGICA DE FILTRADO Y DESCARGA
+ */
+async function executeCatalogGeneration(filtros, info) {
+    // 1. Aplicar filtros a dbRegistrosObra
+    let filtradas = dbRegistrosObra;
+
+    if (filtros.autor) {
+        const term = filtros.autor.toLowerCase();
+        filtradas = filtradas.filter(o => (o.autor || "").toLowerCase().includes(term));
+    }
+    if (filtros.tipo_obra) {
+        const term = filtros.tipo_obra.toLowerCase();
+        filtradas = filtradas.filter(o => (o.tipo_obra || "").toLowerCase().includes(term));
+    }
+    if (filtros.precioMin || filtros.precioMax) {
+        const min = filtros.precioMin || 0;
+        const max = filtros.precioMax || Infinity;
+        filtradas = filtradas.filter(o => {
+            const precio = parseFloat(o.precio_lista) || 0;
+            return precio >= min && precio <= max;
+        });
+    }
+    if (filtros.tags && filtros.tags.length > 0) {
+        filtradas = filtradas.filter(o => {
+            let obraTags = [];
+            if (Array.isArray(o.tags)) obraTags = o.tags.map(t => typeof t === 'string' ? t.toLowerCase() : '');
+            else if (typeof o.tags === 'string') obraTags = o.tags.toLowerCase().split(',').map(t => t.trim());
+            
+            // Si al menos un tag coincide
+            return filtros.tags.some(filtroTag => obraTags.some(t => t.includes(filtroTag.toLowerCase())));
+        });
+    }
+
+    if (filtradas.length === 0) {
+        appendMessage('assistant', "He buscado en la base de datos pero no encontré ninguna obra que coincida exactamente con esos parámetros. ¿Deseas probar con otros filtros?");
+        return;
+    }
+
+    appendMessage('assistant', `¡Perfecto! Encontré **${filtradas.length} obras**. Procederé a generar el catálogo PDF. Esto puede tomar unos segundos mientras descargo las imágenes...`);
+    
+    // 2. Mostrar Pantalla de Carga de PDF
+    pdfLoader.classList.remove('hidden');
+    
+    try {
+        const catalogArtworks = [];
+        
+        // 3. Procesar y descargar imágenes
+        for (let i = 0; i < filtradas.length; i++) {
+            const obra = filtradas[i];
+            
+            // Actualizar UI Progress
+            const progress = ((i) / filtradas.length) * 100;
+            pdfProgressBar.style.width = `${progress}%`;
+            pdfLoaderText.innerText = `Descargando imagen ${i + 1} de ${filtradas.length}...`;
+
+            let imageBase64 = null;
+            if (obra.adjuntos && obra.adjuntos.length > 0) {
+                const adj = obra.adjuntos[0];
+                const rawUrl = typeof adj === 'string' ? adj : (adj.url || '');
+                if (rawUrl) {
+                    imageBase64 = await loadExternalImageAsBase64(rawUrl);
+                }
+            }
+            
+            if (!imageBase64) {
+                imageBase64 = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" fill="%23f3f4f6"><rect width="100%" height="100%"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle">SIN IMAGEN</text></svg>';
+            }
+
+            const dimArr = [];
+            if (obra.alto) dimArr.push(obra.alto);
+            if (obra.ancho) dimArr.push(obra.ancho);
+            if (obra.largo) dimArr.push(obra.largo);
+            const dimensionStr = dimArr.length > 0 ? `${dimArr.join(' x ')} m` : "";
+            const precioStr = obra.precio_lista ? `$${Number(obra.precio_lista).toLocaleString('en-US')}` : "";
+
+            catalogArtworks.push({
+                image: imageBase64,
+                title: (obra.nombre_obra || "SIN TÍTULO").toUpperCase(),
+                artist: (obra.autor || "").toUpperCase(),
+                medium: (obra.tipo_obra || "").toUpperCase(),
+                dimensions: dimensionStr,
+                price: precioStr,
+                code: (obra.clave || ("CAT-" + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
+                isUnique: true
+            });
+        }
+
+        pdfLoaderText.innerText = `Compilando PDF...`;
+        pdfProgressBar.style.width = `100%`;
+
+        // 4. Generar el PDF usando el esquema original
+        await buildPDF(catalogArtworks, info);
+
+        // Terminado
+        pdfLoader.classList.add('hidden');
+        appendMessage('assistant', "✅ ¡Catálogo generado y descargado exitosamente! ¿Te gustaría que prepare otro documento?");
+
+    } catch (error) {
+        console.error("Error en generación:", error);
+        pdfLoader.classList.add('hidden');
+        appendMessage('assistant', "Ocurrió un error inesperado al armar el PDF. Por favor, revisa la consola para más detalles técnicos.");
+    }
+}
+
+/**
+ * FUNCIONES DE APOYO PARA IMÁGENES (CORS)
+ */
+function convertGoogleDriveUrl(url) {
+    if (!url) return null;
+    let fileId = null;
+    const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (driveMatch && driveMatch[1]) fileId = driveMatch[1];
+    
+    const idMatch = url.match(/id=([a-zA-Z0-9_-]+)/);
+    if (idMatch && idMatch[1]) fileId = idMatch[1];
+    
+    const fileMatch = url.match(/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (fileMatch && fileMatch[1]) fileId = fileMatch[1];
+    
+    if (fileId) return `https://lh3.googleusercontent.com/d/${fileId}`;
+    return url;
+}
+
+async function loadExternalImageAsBase64(url) {
+    if (!url) return null;
+    if (url.startsWith('data:')) return url;
+    const convertedUrl = convertGoogleDriveUrl(url);
+    
+    try {
+        const response = await fetch(convertedUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) return null;
+        
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        // Fallback
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                try {
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                } catch (e) {
+                    resolve(null);
+                }
+            };
+            img.onerror = () => resolve(null);
+            img.src = convertedUrl;
+        });
+    }
+}
+
+/**
+ * MOTOR DE RENDERIZADO jsPDF (Mismo layout original RTBROK)
+ */
+async function buildPDF(artworks, info) {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const pageHeight = 297;
+    const currentYear = new Date().getFullYear();
+
+    const globalTitle = info.titulo || "CATÁLOGO DE ARTE";
+    const subVal = info.subtitulo || "COLECCIÓN SELECCIONADA";
+    const dateVal = `ACTUALIZACIÓN ${currentYear}`;
+    const legalNote = "Toda la obra e información mostrada en este catálogo se encuentra protegida por derechos de autor. Su reproducción total o parcial sin autorización está prohibida.";
+
+    let logoData = null;
+    try {
+        const response = await fetch(LOGO_PATH);
+        const blob = await response.blob();
+        logoData = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.readAsDataURL(blob);
+        });
+    } catch (e) {} // Ignorar si el logo falla
+
+    let firstPageCreated = false;
+    const addPage = () => {
+        if (firstPageCreated) doc.addPage();
+        else firstPageCreated = true;
+    };
+
+    // 1. PORTADA
+    addPage();
+    const titleY = 110;
+    if (logoData) {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.08 }));
+        doc.addImage(logoData, 'PNG', (pageWidth - 85) / 2, titleY - 60, 85, 85);
+        doc.restoreGraphicsState();
+    }
+    doc.setTextColor(0);
+    doc.setFont("times", "normal");
+    doc.setFontSize(32);
+    doc.text(globalTitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.text(subVal.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: "center" });
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(dateVal.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: "center" });
+    
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const splitNote = doc.splitTextToSize(legalNote, 150);
+    doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: "center" });
+
+    // 2. INTRODUCCIÓN (Si Gemini generó texto)
+    if (info.intro && info.intro.trim()) {
+        addPage();
+        doc.setTextColor(0);
+        doc.setFont("times", "normal");
+        doc.setFontSize(14);
+        doc.text("INTRODUCCIÓN", 25, 35);
+        
+        doc.setLineWidth(0.1);
+        doc.setDrawColor(200);
+        doc.line(25, 38, pageWidth - 25, 38);
+        
+        doc.setFontSize(11);
+        const splitText = doc.splitTextToSize(info.intro, pageWidth - 50);
+        doc.text(splitText, 25, 50);
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(150);
+        doc.line(25, pageHeight - 20, pageWidth - 25, pageHeight - 20);
+        doc.text("INTRODUCCIÓN", 25, pageHeight - 15);
+        doc.text(globalTitle.toUpperCase(), pageWidth - 25, pageHeight - 15, { align: "right" });
+    }
+
+    // 3. PÁGINAS DE OBRAS
+    for (let i = 0; i < artworks.length; i++) {
+        addPage();
+        const art = artworks[i];
+        const currentArtist = art.artist.trim() || globalTitle;
+        const margin = 25;
+        
+        let imageData = art.image;
+        
+        if(imageData && imageData.startsWith('data:')) {
+            try {
+                const img = new Image();
+                img.src = imageData;
+                await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+                const maxWidth = 160;
+                const maxHeight = 180;
+                const imgRatio = img.width / img.height;
+                const boxRatio = maxWidth / maxHeight;
+                
+                let renderW, renderH;
+                if (imgRatio > boxRatio) {
+                    renderW = maxWidth;
+                    renderH = maxWidth / imgRatio;
+                } else {
+                    renderH = maxHeight;
+                    renderW = maxHeight * imgRatio;
+                }
+
+                const offsetX = margin + (maxWidth - renderW) / 2;
+                const offsetY = 45 + (maxHeight - renderH) / 2;
+
+                doc.addImage(imageData, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+            } catch(err) {
+                // Caja gris fallback
+                doc.setFillColor(240, 240, 240);
+                doc.rect(margin, 45, 160, 150, 'F');
+                doc.setTextColor(150);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.text("IMAGEN NO DISPONIBLE", pageWidth / 2, 120, { align: "center" });
+            }
+        } else {
+            doc.setFillColor(240, 240, 240);
+            doc.rect(margin, 45, 160, 150, 'F');
+            doc.setTextColor(150);
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.text("IMAGEN NO DISPONIBLE", pageWidth / 2, 120, { align: "center" });
+        }
+
+        if (logoData) {
+            doc.saveGraphicsState();
+            doc.setGState(new doc.GState({ opacity: 0.08 }));
+            doc.addImage(logoData, 'PNG', (pageWidth - 20) / 2, pageHeight - 25, 20, 20);
+            doc.restoreGraphicsState();
+        }
+
+        // Título e info obra
+        doc.setTextColor(0);
+        doc.setFont("times", "bold");
+        doc.setFontSize(14);
+        doc.text(`"${art.title}"`, pageWidth - margin, 245, { align: "right" });
+        
+        if(art.artist) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(120);
+            doc.text(art.artist, pageWidth - margin, 252, { align: "right" });
+        }
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(80);
+        let artInfoArr = [];
+        if (art.isUnique) artInfoArr.push("OBRA ÚNICA");
+        if (art.medium && art.medium.trim()) artInfoArr.push(art.medium);
+        if (art.dimensions && art.dimensions.trim()) artInfoArr.push(art.dimensions);
+        if (art.price && art.price.trim()) artInfoArr.push(art.price);
+        if (art.code && art.code.trim()) artInfoArr.push(art.code);
+        
+        doc.text(artInfoArr.join('  |  ').toUpperCase(), pageWidth - margin, 260, { align: "right" });
+
+        // Footer
+        doc.setDrawColor(200);
+        doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+        doc.setFontSize(5.5);
+        doc.setTextColor(180);
+        doc.setFont("helvetica", "bold");
+        doc.text(AVAILABILITY_TEXT, margin, pageHeight - 14);
+        const footerString = `${currentArtist.toUpperCase()}  •  ${dateVal}  •  PÁGINA ${i + 1}`;
+        doc.text(footerString, pageWidth - margin, pageHeight - 14, { align: "right" });
+    }
+
+    // Exportar
+    const fileName = `CATALOGO_${globalTitle.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
+    doc.save(fileName);
+}
+</script>
+</body>
+</html>
