@@ -1127,12 +1127,41 @@ async function generatePDF() {
                     const currentArtist = art.artist.trim() || globalTitle;
                     const margin = 25;
                     
-                    // Ya tenemos la imagen en base64 desde la importación
                     let imageData = art.image;
                     
                     if(imageData && imageData.startsWith('data:')) {
                         try {
-                            doc.addImage(imageData, 'JPEG', margin, 45, 160, 180, undefined, 'FAST');
+                            // Crear un objeto imagen para obtener dimensiones reales
+                            const img = new Image();
+                            img.src = imageData;
+                            await new Promise((resolve, reject) => {
+                                img.onload = resolve;
+                                img.onerror = reject;
+                            });
+
+                            // Área máxima disponible para la imagen
+                            const maxWidth = 160;
+                            const maxHeight = 180;
+                            
+                            const imgRatio = img.width / img.height;
+                            const boxRatio = maxWidth / maxHeight;
+                            
+                            let renderW, renderH;
+
+                            // Calcular medidas manteniendo la proporción
+                            if (imgRatio > boxRatio) {
+                                renderW = maxWidth;
+                                renderH = maxWidth / imgRatio;
+                            } else {
+                                renderH = maxHeight;
+                                renderW = maxHeight * imgRatio;
+                            }
+
+                            // Centrar la imagen en el espacio designado
+                            const offsetX = margin + (maxWidth - renderW) / 2;
+                            const offsetY = 45 + (maxHeight - renderH) / 2;
+
+                            doc.addImage(imageData, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
                         } catch(err) {
                             console.warn("Fallo al insertar la imagen en el pdf", err);
                             doc.setFillColor(240, 240, 240);
