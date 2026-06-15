@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Método no permitido. Utiliza POST.' });
     }
 
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${apiKey}`;
 
     try {
         // 2. Realizar la petición segura a la API oficial de Google Gemini
