@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<!-- Se añade user-scalable=no para evitar zoom al escribir en móviles, lo cual ayuda a fijar el layout -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Asistente de Catálogos IA</title>
 
 <!-- Dependencias -->
@@ -54,7 +55,19 @@ body {
 }
 </style>
 </head>
-<body class="h-screen flex flex-col overflow-hidden text-slate-800">
+<!-- h-[100dvh] previene que barras de direcciones de moviles escondan el footer -->
+<body class="h-[100dvh] flex flex-col overflow-hidden text-slate-800 bg-slate-50">
+
+<!-- PANTALLA DE CARGA INICIAL -->
+<div id="initialLoader" class="fixed inset-0 bg-slate-900 z-50 flex flex-col items-center justify-center transition-opacity duration-500">
+    <div class="relative w-20 h-20 mb-6 flex items-center justify-center">
+        <div class="absolute inset-0 border-4 border-blue-500/30 rounded-full"></div>
+        <div class="absolute inset-0 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+        <i class="fas fa-database text-2xl text-blue-400"></i>
+    </div>
+    <h2 class="text-2xl font-bold text-white mb-2 tracking-wide">Iniciando Sistema</h2>
+    <p class="text-slate-400 animate-pulse">Conectando a base de datos segura...</p>
+</div>
 
 <!-- Encabezado de la App -->
 <header class="bg-slate-900 text-white p-4 shadow-md z-10 flex items-center justify-between shrink-0">
@@ -70,13 +83,13 @@ body {
     <div id="connectionDot" class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse"></div>
 </header>
 
-<!-- Área del Chat -->
-<main class="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4" id="chatContainer">
+<!-- Área del Chat (Se quitó el padding global lateral para permitir que el asistente sea ancho completo) -->
+<main class="flex-1 overflow-y-auto flex flex-col pt-4" id="chatContainer">
     <!-- El historial del chat se insertará aquí -->
 </main>
 
 <!-- Área de Input -->
-<footer class="bg-white p-4 border-t border-slate-200 shrink-0">
+<footer class="bg-white p-4 border-t border-slate-200 shrink-0 pb-safe">
     <div class="max-w-4xl mx-auto flex gap-2 relative">
         <input type="text" id="chatInput" disabled
             class="flex-1 bg-slate-50 border border-slate-300 text-sm rounded-full px-6 py-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all shadow-sm"
@@ -120,6 +133,7 @@ const connectionDot = document.getElementById('connectionDot');
 const pdfLoader = document.getElementById('pdfLoader');
 const pdfLoaderText = document.getElementById('pdfLoaderText');
 const pdfProgressBar = document.getElementById('pdfProgressBar');
+const initialLoader = document.getElementById('initialLoader');
 
 /**
  * INICIALIZACIÓN: Cargar Base de Datos al arrancar (A través del proxy seguro)
@@ -143,6 +157,8 @@ window.onload = async () => {
             sendBtn.disabled = false;
             chatInput.placeholder = "Pídele a Gemini que genere un catálogo (ej: obras de técnica mixta)...";
 
+            hideInitialLoader();
+
             // Obtener algunos autores para el mensaje de bienvenida
             const autores = [...new Set(dbRegistrosObra.map(o => (o.autor || "").trim()))].filter(Boolean);
             const muestraAutores = autores.slice(0, 3).join(', ');
@@ -155,9 +171,19 @@ window.onload = async () => {
         console.error("Error BD:", error);
         dbStatusText.innerText = "Error de conexión";
         connectionDot.classList.replace('bg-yellow-400', 'bg-red-500');
+        
+        hideInitialLoader();
+        
         appendMessage('assistant', "Hubo un problema al conectar con tu base de datos protegida. Por favor, asegúrate de haber configurado 'APPS_SCRIPT_URL' en el panel de Vercel.");
     }
 };
+
+function hideInitialLoader() {
+    initialLoader.classList.add('opacity-0', 'pointer-events-none');
+    setTimeout(() => {
+        initialLoader.remove();
+    }, 500);
+}
 
 /**
  * MANEJO DEL CHAT
@@ -184,22 +210,36 @@ async function handleSend() {
 function appendMessage(role, text) {
     const isUser = role === 'user';
     const wrapper = document.createElement('div');
-    wrapper.className = `flex w-full ${isUser ? 'justify-end' : 'justify-start'} chat-bubble`;
-
-    // Formatear markdown básico (negritas)
     const formattedText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
 
-    const bubble = `
-        <div class="flex gap-3 max-w-[85%] md:max-w-[70%] ${isUser ? 'flex-row-reverse' : 'flex-row'}">
-            <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${isUser ? 'bg-slate-200 text-slate-600' : 'bg-blue-600 text-white'}">
-                <i class="fas ${isUser ? 'fa-user' : 'fa-robot'} text-sm"></i>
+    if (isUser) {
+        // Estilo Burbuja para Usuario (Alineado a la derecha)
+        wrapper.className = `flex w-full justify-end chat-bubble px-4 md:px-6 mb-4`;
+        wrapper.innerHTML = `
+            <div class="flex gap-3 max-w-[85%] md:max-w-[70%] flex-row-reverse">
+                <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm bg-slate-200 text-slate-600">
+                    <i class="fas fa-user text-sm"></i>
+                </div>
+                <div class="p-4 rounded-2xl shadow-sm text-sm leading-relaxed bg-slate-800 text-white rounded-tr-sm">
+                    ${formattedText}
+                </div>
             </div>
-            <div class="p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${isUser ? 'bg-slate-800 text-white rounded-tr-sm' : 'bg-white border border-slate-100 text-slate-700 rounded-tl-sm'}">
-                ${formattedText}
+        `;
+    } else {
+        // Estilo Pantalla Completa para Asistente (Sin globo de texto)
+        wrapper.className = `w-full chat-bubble py-8 px-4 md:px-6 bg-white border-y border-slate-200 mb-4 shadow-sm`;
+        wrapper.innerHTML = `
+            <div class="max-w-4xl mx-auto flex gap-4 md:gap-6">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-md bg-blue-600 text-white">
+                    <i class="fas fa-robot text-lg"></i>
+                </div>
+                <div class="flex-1 text-[15px] md:text-base text-slate-700 leading-relaxed pt-1 font-light">
+                    ${formattedText}
+                </div>
             </div>
-        </div>
-    `;
-    wrapper.innerHTML = bubble;
+        `;
+    }
+    
     chatContainer.appendChild(wrapper);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
@@ -211,13 +251,14 @@ function showTypingIndicator() {
 
     const wrapper = document.createElement('div');
     wrapper.id = 'typingIndicator';
-    wrapper.className = `flex w-full justify-start chat-bubble`;
+    // Mismo estilo de ancho completo que el asistente
+    wrapper.className = `w-full chat-bubble py-8 px-4 md:px-6 bg-white border-y border-slate-200 mb-4 shadow-sm`;
     wrapper.innerHTML = `
-        <div class="flex gap-3 max-w-[85%] flex-row">
-            <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                <i class="fas fa-robot text-sm"></i>
+        <div class="max-w-4xl mx-auto flex gap-4 md:gap-6">
+            <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 shadow-md bg-blue-600 text-white">
+                <i class="fas fa-robot text-lg"></i>
             </div>
-            <div class="p-4 rounded-2xl bg-white border border-slate-100 rounded-tl-sm shadow-sm flex items-center justify-center gap-1">
+            <div class="flex-1 flex items-center pt-2">
                 <svg width="24" height="6" viewBox="0 0 24 6" class="text-slate-400">
                     <circle cx="3" cy="3" r="3" class="typing-dot" />
                     <circle cx="12" cy="3" r="3" class="typing-dot" />
@@ -245,14 +286,11 @@ function removeTypingIndicator() {
 async function processGeminiRequest() {
     showTypingIndicator();
 
-    // Ruta segura local/producción mapeada por Vercel Serverless
     const SECURE_API_ENDPOINT = "/api/chat";
-
     const systemPrompt = `Eres un asistente experto en arte y curaduría. Tu objetivo es interactuar con el usuario para ayudarle a generar un catálogo de arte en formato PDF a partir de una base de datos.
     Analiza la solicitud del usuario. Si está pidiendo un catálogo (ej: "hazme un catálogo...", "quiero ver obras de...", "filtra por..."), extrae los parámetros de búsqueda.
     Siempre debes responder con un JSON estructurado que siga el esquema definido, conteniendo tu respuesta conversacional y los filtros detectados.`;
 
-    // Preparar el historial de conversación
     const contents = chatHistory.map(msg => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.text }]
@@ -266,14 +304,14 @@ async function processGeminiRequest() {
             responseSchema: {
                 type: "OBJECT",
                 properties: {
-                    mensaje: { type: "STRING", description: "Tu respuesta conversacional en lenguaje natural. Sé amable y profesional." },
-                    generar_catalogo: { type: "BOOLEAN", description: "True si el usuario quiere que se genere un catálogo, False si solo es charla." },
+                    mensaje: { type: "STRING" },
+                    generar_catalogo: { type: "BOOLEAN" },
                     filtros: {
                         type: "OBJECT",
                         properties: {
-                            autor: { type: "STRING", description: "Nombre del autor a buscar (coincidencia parcial o exacta)." },
-                            tipo_obra: { type: "STRING", description: "Técnica o tipo (ej. óleo, escultura, mixta)." },
-                            tags: { type: "ARRAY", items: { type: "STRING" }, description: "Palabras clave adicionales." },
+                            autor: { type: "STRING" },
+                            tipo_obra: { type: "STRING" },
+                            tags: { type: "ARRAY", items: { type: "STRING" } },
                             precioMin: { type: "NUMBER" },
                             precioMax: { type: "NUMBER" }
                         }
@@ -281,9 +319,9 @@ async function processGeminiRequest() {
                     catalogo_info: {
                         type: "OBJECT",
                         properties: {
-                            titulo: { type: "STRING", description: "Título sugerido para el PDF (ej. CATÁLOGO GENERAL, OBRAS SELECTAS)." },
-                            subtitulo: { type: "STRING", description: "Subtítulo sugerido basado en la petición." },
-                            intro: { type: "STRING", description: "Un breve texto introductorio curatorial para el catálogo, si aplica." }
+                            titulo: { type: "STRING" },
+                            subtitulo: { type: "STRING" },
+                            intro: { type: "STRING" }
                         }
                     }
                 },
@@ -293,14 +331,13 @@ async function processGeminiRequest() {
     };
 
     try {
-        // Hacemos el envío POST a nuestra propia función backend de Vercel
         const response = await fetch(SECURE_API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        if (!response.ok) throw new Error(`Error en el servidor backend: ${response.status}`);
+        if (!response.ok) throw new Error(`Error backend: ${response.status}`);
         
         const data = await response.json();
         const resultText = data.candidates[0].content.parts[0].text;
@@ -308,19 +345,17 @@ async function processGeminiRequest() {
 
         removeTypingIndicator();
         
-        // Renderizar la respuesta conversacional obtenida
         appendMessage('assistant', resultJSON.mensaje);
         chatHistory.push({ role: 'assistant', text: resultJSON.mensaje });
 
-        // Evaluar la generación del catálogo si se cumplen los filtros
         if (resultJSON.generar_catalogo && resultJSON.filtros && resultJSON.catalogo_info) {
             await executeCatalogGeneration(resultJSON.filtros, resultJSON.catalogo_info);
         }
 
     } catch (error) {
         removeTypingIndicator();
-        console.error("Error Gemini Backend Proxy:", error);
-        appendMessage('assistant', "Lo siento, hubo un problema al procesar la petición con el servidor. Por favor, asegúrate de haber configurado tu 'GEMINI_API_KEY' en el panel de Vercel.");
+        console.error("Error Gemini:", error);
+        appendMessage('assistant', "Lo siento, hubo un problema al procesar la petición con el servidor. Por favor, asegúrate de haber configurado tu API KEY en Vercel.");
     }
 }
 
@@ -357,22 +392,18 @@ async function executeCatalogGeneration(filtros, info) {
     }
 
     if (filtradas.length === 0) {
-        appendMessage('assistant', "He buscado en la base de datos pero no encontré ninguna obra que coincida con esos filtros. ¿Deseas intentar con otros?");
+        appendMessage('assistant', "He buscado en la base de datos pero no encontré ninguna obra que coincida. ¿Deseas intentar con otros?");
         return;
     }
 
     appendMessage('assistant', `¡Perfecto! Encontré **${filtradas.length} obras**. Iniciando la generación del catálogo PDF...`);
-    
-    // Mostrar loader
     pdfLoader.classList.remove('hidden');
     
     try {
         const catalogArtworks = [];
-        
         for (let i = 0; i < filtradas.length; i++) {
             const obra = filtradas[i];
             
-            // Actualizar barra de progreso
             const progress = ((i) / filtradas.length) * 100;
             pdfProgressBar.style.width = `${progress}%`;
             pdfLoaderText.innerText = `Descargando imagen ${i + 1} de ${filtradas.length}...`;
@@ -522,13 +553,31 @@ async function buildPDF(artworks, info) {
         doc.addImage(logoData, 'PNG', (pageWidth - 85) / 2, titleY - 60, 85, 85);
         doc.restoreGraphicsState();
     }
+    
     doc.setTextColor(0);
     doc.setFont("times", "normal");
-    doc.setFontSize(32);
-    doc.text(globalTitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: "center" });
     
-    doc.setFontSize(10);
-    doc.text(subVal.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: "center" });
+    // REDUCCIÓN DINÁMICA DE TÍTULO
+    let titleStr = globalTitle.toUpperCase().split('').join(' ');
+    let fontSize = 32;
+    doc.setFontSize(fontSize);
+    
+    // Mientras el texto sea más grande que la página, reducimos la fuente
+    while(doc.getTextWidth(titleStr) > (pageWidth - 40) && fontSize > 10) {
+        fontSize--;
+        doc.setFontSize(fontSize);
+    }
+    doc.text(titleStr, pageWidth / 2, titleY, { align: "center" });
+    
+    // REDUCCIÓN DINÁMICA DE SUBTÍTULO
+    let subStr = subVal.toUpperCase().split('').join(' ');
+    let subFontSize = 10;
+    doc.setFontSize(subFontSize);
+    while(doc.getTextWidth(subStr) > (pageWidth - 40) && subFontSize > 6) {
+        subFontSize--;
+        doc.setFontSize(subFontSize);
+    }
+    doc.text(subStr, pageWidth / 2, titleY + 15, { align: "center" });
     
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
