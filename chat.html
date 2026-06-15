@@ -104,7 +104,7 @@ body {
  */
 // El entorno inyecta la clave de Gemini en la variable apiKey. 
 // Si corres este HTML de forma local, reemplaza la cadena vacía con tu clave: "AIzaSyBYZzPAGzCoRf1Z3v4spUsRQQmPVsUfwFY"
-const apiKey = "AIzaSyBYZzPAGzCoRf1Z3v4spUsRQQmPVsUfwFY"; 
+const apiKey = process.env.API_KEY; 
 const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec";
 const LOGO_PATH = 'rtbrok_logo.png';
 const AVAILABILITY_TEXT = "TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CONFIRMACIÓN";
