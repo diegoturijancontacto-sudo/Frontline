@@ -56,7 +56,7 @@ body {
 </head>
 <body class="h-screen flex flex-col overflow-hidden text-slate-800">
 
-<!-- App Header -->
+<!-- Encabezado de la App -->
 <header class="bg-slate-900 text-white p-4 shadow-md z-10 flex items-center justify-between shrink-0">
     <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center shadow-inner">
@@ -70,12 +70,12 @@ body {
     <div id="connectionDot" class="w-3 h-3 rounded-full bg-yellow-400 animate-pulse"></div>
 </header>
 
-<!-- Chat Area -->
+<!-- Área del Chat -->
 <main class="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-4" id="chatContainer">
     <!-- El historial del chat se insertará aquí -->
 </main>
 
-<!-- Input Area -->
+<!-- Área de Input -->
 <footer class="bg-white p-4 border-t border-slate-200 shrink-0">
     <div class="max-w-4xl mx-auto flex gap-2 relative">
         <input type="text" id="chatInput" disabled
@@ -99,10 +99,9 @@ body {
 </div>
 
 <script>
-// El entorno inyecta la clave de Gemini en la variable apiKey. 
-// Si corres este HTML de forma local, reemplaza la cadena vacía con tu clave: "AIzaSyBYZzPAGzCoRf1Z3v4spUsRQQmPVsUfwFY"
-const apiKey = import.meta.env.API_KEY; 
-const APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec";
+/**
+ * CONFIGURACIÓN DEL FRONTEND
+ */
 const LOGO_PATH = 'rtbrok_logo.png';
 const AVAILABILITY_TEXT = "TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CONFIRMACIÓN";
 const { jsPDF } = window.jspdf;
@@ -123,17 +122,20 @@ const pdfLoaderText = document.getElementById('pdfLoaderText');
 const pdfProgressBar = document.getElementById('pdfProgressBar');
 
 /**
- * INICIALIZACIÓN: Cargar DB al arrancar
+ * INICIALIZACIÓN: Cargar Base de Datos al arrancar (A través del proxy seguro)
  */
 window.onload = async () => {
     try {
-        const response = await fetch(APP_SCRIPT_URL);
+        // Apuntamos al endpoint seguro de Vercel en lugar del Apps Script directo
+        const response = await fetch('/api/obras');
+        if (!response.ok) throw new Error("Fallo en la comunicación con el intermediario de base de datos.");
+        
         const data = await response.json();
         
         if (data.registrosObra && Array.isArray(data.registrosObra)) {
             dbRegistrosObra = data.registrosObra;
             
-            // Actualizar UI
+            // Actualizar interfaz de usuario
             dbStatusText.innerText = `${dbRegistrosObra.length} Obras en memoria`;
             connectionDot.classList.replace('bg-yellow-400', 'bg-green-500');
             connectionDot.classList.remove('animate-pulse');
@@ -145,15 +147,15 @@ window.onload = async () => {
             const autores = [...new Set(dbRegistrosObra.map(o => (o.autor || "").trim()))].filter(Boolean);
             const muestraAutores = autores.slice(0, 3).join(', ');
 
-            appendMessage('assistant', `¡Hola! Soy tu asistente curador. He conectado exitosamente con tu base de datos y cargué **${dbRegistrosObra.length} obras**. Tenemos piezas de artistas como ${muestraAutores}... \n\n¿Qué tipo de catálogo te gustaría generar hoy? Puedes pedirme que filtre por autor, técnica, palabras clave o rango de precio.`);
+            appendMessage('assistant', `¡Hola! Soy tu asistente curador. He conectado exitosamente con tu base de datos a través de un canal seguro y cargué **${dbRegistrosObra.length} obras**. Tenemos piezas de artistas como ${muestraAutores}... \n\n¿Qué tipo de catálogo te gustaría generar hoy? Puedes pedirme que filtre por autor, técnica, palabras clave o rango de precio.`);
         } else {
-            throw new Error("Formato de datos no válido desde Apps Script.");
+            throw new Error("Formato de datos no válido desde el intermediario.");
         }
     } catch (error) {
         console.error("Error BD:", error);
         dbStatusText.innerText = "Error de conexión";
         connectionDot.classList.replace('bg-yellow-400', 'bg-red-500');
-        appendMessage('assistant', "Hubo un problema al conectar con tu base de datos (Google Sheets). Por favor, verifica la URL o recarga la página.");
+        appendMessage('assistant', "Hubo un problema al conectar con tu base de datos protegida. Por favor, asegúrate de haber configurado 'APPS_SCRIPT_URL' en el panel de Vercel.");
     }
 };
 
@@ -175,7 +177,7 @@ async function handleSend() {
     // Preparar historial
     chatHistory.push({ role: 'user', text: text });
     
-    // Llamar a Gemini
+    // Llamar a Gemini mediante nuestra Serverless Function segura
     await processGeminiRequest();
 }
 
@@ -238,19 +240,19 @@ function removeTypingIndicator() {
 }
 
 /**
- * INTEGRACIÓN CON GEMINI
+ * INTEGRACIÓN CON GEMINI (Petición segura a través del Servidor Vercel)
  */
 async function processGeminiRequest() {
     showTypingIndicator();
 
-    const actualApiKey = typeof __env__ !== 'undefined' && __env__.GEMINI_API_KEY ? __env__.GEMINI_API_KEY : apiKey;
-    const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${actualApiKey}`;
+    // Ruta segura local/producción mapeada por Vercel Serverless
+    const SECURE_API_ENDPOINT = "/api/chat";
 
     const systemPrompt = `Eres un asistente experto en arte y curaduría. Tu objetivo es interactuar con el usuario para ayudarle a generar un catálogo de arte en formato PDF a partir de una base de datos.
     Analiza la solicitud del usuario. Si está pidiendo un catálogo (ej: "hazme un catálogo...", "quiero ver obras de...", "filtra por..."), extrae los parámetros de búsqueda.
     Siempre debes responder con un JSON estructurado que siga el esquema definido, conteniendo tu respuesta conversacional y los filtros detectados.`;
 
-    // Preparar el historial para Gemini
+    // Preparar el historial de conversación
     const contents = chatHistory.map(msg => ({
         role: msg.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: msg.text }]
@@ -291,13 +293,14 @@ async function processGeminiRequest() {
     };
 
     try {
-        const response = await fetch(GEMINI_URL, {
+        // Hacemos el envío POST a nuestra propia función backend de Vercel
+        const response = await fetch(SECURE_API_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) throw new Error(`Error en el servidor backend: ${response.status}`);
         
         const data = await response.json();
         const resultText = data.candidates[0].content.parts[0].text;
@@ -305,19 +308,19 @@ async function processGeminiRequest() {
 
         removeTypingIndicator();
         
-        // Mostrar respuesta de Gemini
+        // Renderizar la respuesta conversacional obtenida
         appendMessage('assistant', resultJSON.mensaje);
         chatHistory.push({ role: 'assistant', text: resultJSON.mensaje });
 
-        // Evaluar si se debe generar el catálogo
+        // Evaluar la generación del catálogo si se cumplen los filtros
         if (resultJSON.generar_catalogo && resultJSON.filtros && resultJSON.catalogo_info) {
             await executeCatalogGeneration(resultJSON.filtros, resultJSON.catalogo_info);
         }
 
     } catch (error) {
         removeTypingIndicator();
-        console.error("Error Gemini:", error);
-        appendMessage('assistant', "Lo siento, tuve un problema al procesar tu solicitud con el servidor de IA. Asegúrate de que la clave de API (apiKey) esté configurada correctamente.");
+        console.error("Error Gemini Backend Proxy:", error);
+        appendMessage('assistant', "Lo siento, hubo un problema al procesar la petición con el servidor. Por favor, asegúrate de haber configurado tu 'GEMINI_API_KEY' en el panel de Vercel.");
     }
 }
 
@@ -325,7 +328,6 @@ async function processGeminiRequest() {
  * LÓGICA DE FILTRADO Y DESCARGA
  */
 async function executeCatalogGeneration(filtros, info) {
-    // 1. Aplicar filtros a dbRegistrosObra
     let filtradas = dbRegistrosObra;
 
     if (filtros.autor) {
@@ -350,29 +352,27 @@ async function executeCatalogGeneration(filtros, info) {
             if (Array.isArray(o.tags)) obraTags = o.tags.map(t => typeof t === 'string' ? t.toLowerCase() : '');
             else if (typeof o.tags === 'string') obraTags = o.tags.toLowerCase().split(',').map(t => t.trim());
             
-            // Si al menos un tag coincide
             return filtros.tags.some(filtroTag => obraTags.some(t => t.includes(filtroTag.toLowerCase())));
         });
     }
 
     if (filtradas.length === 0) {
-        appendMessage('assistant', "He buscado en la base de datos pero no encontré ninguna obra que coincida exactamente con esos parámetros. ¿Deseas probar con otros filtros?");
+        appendMessage('assistant', "He buscado en la base de datos pero no encontré ninguna obra que coincida con esos filtros. ¿Deseas intentar con otros?");
         return;
     }
 
-    appendMessage('assistant', `¡Perfecto! Encontré **${filtradas.length} obras**. Procederé a generar el catálogo PDF. Esto puede tomar unos segundos mientras descargo las imágenes...`);
+    appendMessage('assistant', `¡Perfecto! Encontré **${filtradas.length} obras**. Iniciando la generación del catálogo PDF...`);
     
-    // 2. Mostrar Pantalla de Carga de PDF
+    // Mostrar loader
     pdfLoader.classList.remove('hidden');
     
     try {
         const catalogArtworks = [];
         
-        // 3. Procesar y descargar imágenes
         for (let i = 0; i < filtradas.length; i++) {
             const obra = filtradas[i];
             
-            // Actualizar UI Progress
+            // Actualizar barra de progreso
             const progress = ((i) / filtradas.length) * 100;
             pdfProgressBar.style.width = `${progress}%`;
             pdfLoaderText.innerText = `Descargando imagen ${i + 1} de ${filtradas.length}...`;
@@ -412,22 +412,20 @@ async function executeCatalogGeneration(filtros, info) {
         pdfLoaderText.innerText = `Compilando PDF...`;
         pdfProgressBar.style.width = `100%`;
 
-        // 4. Generar el PDF usando el esquema original
         await buildPDF(catalogArtworks, info);
 
-        // Terminado
         pdfLoader.classList.add('hidden');
-        appendMessage('assistant', "✅ ¡Catálogo generado y descargado exitosamente! ¿Te gustaría que prepare otro documento?");
+        appendMessage('assistant', "✅ ¡Tu catálogo ha sido compilado y descargado exitosamente!");
 
     } catch (error) {
-        console.error("Error en generación:", error);
+        console.error("Error en compilación:", error);
         pdfLoader.classList.add('hidden');
-        appendMessage('assistant', "Ocurrió un error inesperado al armar el PDF. Por favor, revisa la consola para más detalles técnicos.");
+        appendMessage('assistant', "Ocurrió un error inesperado al procesar el catálogo PDF.");
     }
 }
 
 /**
- * FUNCIONES DE APOYO PARA IMÁGENES (CORS)
+ * PROCESAMIENTO DE IMÁGENES Y CORS
  */
 function convertGoogleDriveUrl(url) {
     if (!url) return null;
@@ -452,7 +450,7 @@ async function loadExternalImageAsBase64(url) {
     
     try {
         const response = await fetch(convertedUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const blob = await response.blob();
         if (!blob.type.startsWith('image/')) return null;
         
@@ -463,7 +461,6 @@ async function loadExternalImageAsBase64(url) {
             reader.readAsDataURL(blob);
         });
     } catch (error) {
-        // Fallback
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = 'Anonymous';
@@ -486,7 +483,7 @@ async function loadExternalImageAsBase64(url) {
 }
 
 /**
- * MOTOR DE RENDERIZADO jsPDF (Mismo layout original RTBROK)
+ * MOTOR DE RENDERIZADO jsPDF
  */
 async function buildPDF(artworks, info) {
     const doc = new jsPDF('p', 'mm', 'a4');
@@ -508,7 +505,7 @@ async function buildPDF(artworks, info) {
             reader.onload = () => resolve(reader.result);
             reader.readAsDataURL(blob);
         });
-    } catch (e) {} // Ignorar si el logo falla
+    } catch (e) {}
 
     let firstPageCreated = false;
     const addPage = () => {
@@ -543,7 +540,7 @@ async function buildPDF(artworks, info) {
     const splitNote = doc.splitTextToSize(legalNote, 150);
     doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: "center" });
 
-    // 2. INTRODUCCIÓN (Si Gemini generó texto)
+    // 2. INTRODUCCIÓN
     if (info.intro && info.intro.trim()) {
         addPage();
         doc.setTextColor(0);
@@ -601,7 +598,6 @@ async function buildPDF(artworks, info) {
 
                 doc.addImage(imageData, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
             } catch(err) {
-                // Caja gris fallback
                 doc.setFillColor(240, 240, 240);
                 doc.rect(margin, 45, 160, 150, 'F');
                 doc.setTextColor(150);
@@ -625,7 +621,7 @@ async function buildPDF(artworks, info) {
             doc.restoreGraphicsState();
         }
 
-        // Título e info obra
+        // Metadatos de la Obra
         doc.setTextColor(0);
         doc.setFont("times", "bold");
         doc.setFontSize(14);
@@ -650,7 +646,7 @@ async function buildPDF(artworks, info) {
         
         doc.text(artInfoArr.join('  |  ').toUpperCase(), pageWidth - margin, 260, { align: "right" });
 
-        // Footer
+        // Pie de Página
         doc.setDrawColor(200);
         doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
         doc.setFontSize(5.5);
@@ -661,10 +657,11 @@ async function buildPDF(artworks, info) {
         doc.text(footerString, pageWidth - margin, pageHeight - 14, { align: "right" });
     }
 
-    // Exportar
+    // Exportar archivo
     const fileName = `CATALOGO_${globalTitle.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`;
     doc.save(fileName);
 }
 </script>
 </body>
 </html>
+
