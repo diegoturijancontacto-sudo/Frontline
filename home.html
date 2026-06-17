@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTBROK - Generador de Catálogos</title>
+
+    <!-- Librerías -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Roboto:wght@300;400;500;700&display=swap');
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8fafc;
+            overflow: hidden; /* Prevent body scroll, handle inside containers */
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Toggles */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #1e293b;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #1e293b;
+        }
+
+        /* PDF Fonts Setup (from original) */
+        .font-serif-pdf { font-family: 'Times New Roman', Times, serif; }
+        .font-sans-pdf { font-family: Arial, Helvetica, sans-serif; }
+
+        /* Custom Checkbox on Images */
+        .img-checkbox {
+            appearance: none;
+            background-color: rgba(255, 255, 255, 0.9);
+            margin: 0;
+            font: inherit;
+            color: currentColor;
+            width: 1.5em;
+            height: 1.5em;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.25em;
+            display: grid;
+            place-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .img-checkbox::before {
+            content: "";
+            width: 0.85em;
+            height: 0.85em;
+            transform: scale(0);
+            transition: 120ms transform ease-in-out;
+            box-shadow: inset 1em 1em white;
+            background-color: transform;
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .img-checkbox:checked {
+            background-color: #1e293b;
+            border-color: #1e293b;
+        }
+        .img-checkbox:checked::before {
+            transform: scale(1);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col text-slate-800">
+
+    <!-- BARRA SUPERIOR -->
+    <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6 shrink-0 z-20">
+        <div class="flex items-center gap-6">
+            <div class="flex flex-col leading-tight">
+                <span class="text-xl font-serif font-bold tracking-widest text-slate-900">RTBROK</span>
+                <span class="text-[8px] tracking-[0.2em] text-slate-500 uppercase">Arte | Subastas | Asesoría</span>
+            </div>
+            <div class="h-6 w-px bg-gray-300 mx-2"></div>
+            <h1 class="text-lg font-medium text-slate-700">Generador de Catálogos PDF</h1>
+        </div>
+
+        <div class="flex-1 max-w-2xl mx-8 relative">
+            <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="globalSearch" placeholder="Buscar por obra, autor, técnica, palabra clave..." class="w-full bg-gray-50 border border-gray-200 rounded-md py-2 pl-10 pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-colors">
+        </div>
+
+        <div class="flex items-center gap-6 text-sm">
+            <button class="text-slate-600 hover:text-slate-900 flex items-center gap-2"><i class="far fa-question-circle"></i> Ayuda</button>
+            <button class="text-slate-600 hover:text-slate-900 relative">
+                <i class="far fa-bell text-lg"></i>
+                <span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">3</span>
+            </button>
+            <div class="flex items-center gap-3 border-l border-gray-200 pl-6">
+                <div class="text-right">
+                    <p class="font-medium text-slate-800 text-sm leading-tight">Arturo López</p>
+                    <p class="text-xs text-slate-500">Administrador</p>
+                </div>
+                <div class="w-9 h-9 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm">AL</div>
+                <i class="fas fa-chevron-down text-xs text-gray-400 cursor-pointer"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- CUERPO PRINCIPAL -->
+    <div class="flex flex-1 overflow-hidden">
+        
+        <!-- PANEL IZQUIERDO: FILTROS -->
+        <aside class="w-72 bg-white border-r border-gray-200 flex flex-col shrink-0">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="font-bold text-sm text-slate-800 uppercase tracking-wide">Filtros</h2>
+                <button onclick="clearFilters()" class="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1">Limpiar filtros <i class="fas fa-sync-alt"></i></button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                
+                <!-- Autor -->
+                <div>
+                    <div class="flex justify-between items-center mb-3 cursor-pointer" onclick="toggleAccordion('acc-autor')">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase">Autor</h3>
+                        <i class="fas fa-chevron-up text-xs text-gray-400 transition-transform" id="icon-acc-autor"></i>
+                    </div>
+                    <div id="acc-autor" class="space-y-3">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-2 top-1/2 transform -translate-y-1/2 text-gray-400 text-xs"></i>
+                            <input type="text" id="searchAutor" placeholder="Buscar autor..." class="w-full bg-gray-50 border border-gray-200 rounded py-1.5 pl-7 pr-2 text-xs focus:outline-none focus:border-slate-400">
+                        </div>
+                        <div class="space-y-2 max-h-40 overflow-y-auto" id="filterAutoresList">
+                            <!-- Autores llenados por JS -->
+                        </div>
+                        <button class="text-xs text-slate-800 font-medium">Ver más</button>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Técnica -->
+                <div>
+                    <div class="flex justify-between items-center mb-3 cursor-pointer" onclick="toggleAccordion('acc-tecnica')">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase">Técnica</h3>
+                        <i class="fas fa-chevron-up text-xs text-gray-400 transition-transform" id="icon-acc-tecnica"></i>
+                    </div>
+                    <div id="acc-tecnica">
+                        <select id="filterTecnica" class="w-full border border-gray-200 rounded p-2 text-sm focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                            <option value="">Seleccionar técnicas</option>
+                        </select>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Precio -->
+                <div>
+                    <div class="flex justify-between items-center mb-3 cursor-pointer" onclick="toggleAccordion('acc-precio')">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase">Precio (MXN)</h3>
+                        <i class="fas fa-chevron-up text-xs text-gray-400 transition-transform" id="icon-acc-precio"></i>
+                    </div>
+                    <div id="acc-precio" class="space-y-4">
+                        <div class="flex gap-2">
+                            <div class="flex-1">
+                                <label class="text-[10px] text-gray-500 mb-1 block">Desde</label>
+                                <input type="number" id="filterPriceMin" placeholder="$ 0" class="w-full border border-gray-200 rounded p-2 text-sm focus:outline-none focus:border-slate-400">
+                            </div>
+                            <div class="flex-1">
+                                <label class="text-[10px] text-gray-500 mb-1 block">Hasta</label>
+                                <input type="number" id="filterPriceMax" placeholder="$ 500,000+" class="w-full border border-gray-200 rounded p-2 text-sm focus:outline-none focus:border-slate-400">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100">
+
+                <!-- Other Placeholders for UI exact match -->
+                <div class="flex justify-between items-center cursor-pointer"><h3 class="text-xs font-bold text-slate-700 uppercase">Tamaño (cm)</h3><i class="fas fa-chevron-down text-xs text-gray-400"></i></div>
+                <div class="flex justify-between items-center cursor-pointer"><h3 class="text-xs font-bold text-slate-700 uppercase">Proveedor</h3><i class="fas fa-chevron-down text-xs text-gray-400"></i></div>
+                <div class="flex justify-between items-center cursor-pointer"><h3 class="text-xs font-bold text-slate-700 uppercase">Ubicación</h3><i class="fas fa-chevron-down text-xs text-gray-400"></i></div>
+                <div class="flex justify-between items-center cursor-pointer"><h3 class="text-xs font-bold text-slate-700 uppercase">Disponibilidad</h3><i class="fas fa-chevron-down text-xs text-gray-400"></i></div>
+
+            </div>
+            
+            <div class="p-4 border-t border-gray-200 bg-gray-50 flex gap-2">
+                <button onclick="applyFilters()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2 rounded text-xs font-bold tracking-wide transition-colors">APLICAR FILTROS</button>
+                <button onclick="clearFilters()" class="px-4 bg-white border border-gray-300 hover:bg-gray-50 text-slate-700 py-2 rounded text-xs font-bold transition-colors">LIMPIAR</button>
+            </div>
+        </aside>
+
+        <!-- PANEL CENTRAL: RESULTADOS -->
+        <main class="flex-1 flex flex-col bg-gray-100 relative">
+            <div class="px-8 py-5 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
+                <div class="flex items-center gap-3">
+                    <h2 class="font-bold text-lg text-slate-800">RESULTADOS</h2>
+                    <span id="resultsCount" class="bg-slate-800 text-white text-xs px-2.5 py-1 rounded-full font-medium">0 obras encontradas</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">Ordenar por:</span>
+                        <select class="border-none text-sm font-medium text-slate-800 bg-transparent focus:outline-none cursor-pointer">
+                            <option>Más recientes</option>
+                            <option>Precio: Mayor a Menor</option>
+                            <option>Precio: Menor a Mayor</option>
+                        </select>
+                    </div>
+                    <div class="flex bg-gray-100 rounded border border-gray-200 p-0.5">
+                        <button class="bg-white shadow-sm p-1.5 rounded text-slate-800"><i class="fas fa-th-large text-sm"></i></button>
+                        <button class="p-1.5 rounded text-gray-400 hover:text-slate-800"><i class="fas fa-list text-sm"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-8">
+                <div id="gridContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-20">
+                    <!-- Obras llenadas por JS -->
+                </div>
+                
+                <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-slate-400 mt-20">
+                    <i class="fas fa-image text-6xl mb-4 opacity-20"></i>
+                    <p class="text-lg font-medium text-slate-600">No se encontraron resultados</p>
+                    <p class="text-sm">Intenta ajustar tus filtros de búsqueda.</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- PANEL DERECHO: CONFIGURACIÓN -->
+        <aside class="w-80 bg-white border-l border-gray-200 flex flex-col shrink-0 z-10 shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.05)]">
+            
+            <!-- Resumen Catálogo -->
+            <div class="bg-slate-900 text-white p-5">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="font-bold text-sm tracking-wide">CATÁLOGO ACTUAL</h2>
+                    <button class="text-xs flex items-center gap-1 hover:text-gray-300"><i class="far fa-save"></i> Guardar</button>
+                </div>
+                <p id="selectedCountText" class="text-sm text-gray-300 mb-2">0 obras seleccionadas</p>
+                <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Valor total estimado</p>
+                <p id="totalValueText" class="text-2xl font-bold font-serif-pdf mb-5">$0 MXN</p>
+
+                <button onclick="prepareAndGeneratePDF()" class="w-full bg-white text-slate-900 hover:bg-gray-100 py-3 rounded-md font-bold tracking-widest text-sm flex items-center justify-center gap-2 mb-3 transition-colors">
+                    <i class="fas fa-file-pdf"></i> GENERAR PDF
+                </button>
+                
+                <div class="flex gap-2">
+                    <button class="flex-1 border border-slate-600 hover:bg-slate-800 py-2 rounded text-xs font-medium transition-colors">VISTA PREVIA</button>
+                    <button onclick="clearSelection()" class="flex-1 border border-slate-600 hover:bg-slate-800 py-2 rounded text-xs font-medium transition-colors">LIMPIAR TODO</button>
+                </div>
+            </div>
+
+            <!-- Scrollable Settings -->
+            <div class="flex-1 overflow-y-auto p-5">
+                
+                <!-- Textos PDF (Ocultos en UI original pero necesarios para funcionalidad) -->
+                <div class="mb-6">
+                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">Textos del Catálogo PDF</h3>
+                    <div class="space-y-3 bg-gray-50 p-3 rounded border border-gray-200">
+                        <input type="text" id="pdfArtistName" placeholder="Título (Ej. CATÁLOGO GENERAL)" value="CATÁLOGO GENERAL" class="w-full text-xs p-2 border border-gray-200 rounded">
+                        <input type="text" id="pdfSubtitle" placeholder="Subtítulo" value="OBRA SELECCIONADA" class="w-full text-xs p-2 border border-gray-200 rounded">
+                        <input type="text" id="pdfUpdateText" placeholder="Fecha" value="ACTUALIZACIÓN 2024" class="w-full text-xs p-2 border border-gray-200 rounded">
+                        <textarea id="pdfLegalNote" rows="2" placeholder="Nota legal..." class="w-full text-[10px] p-2 border border-gray-200 rounded">Toda la obra se encuentra sujeta a disponibilidad y cambios de precio sin previo aviso.</textarea>
+                    </div>
+                </div>
+
+                <hr class="border-gray-100 mb-6">
+
+                <!-- Configuración Visual (Toggles) -->
+                <div class="mb-8">
+                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">CONFIGURACIÓN DEL CATÁLOGO</h3>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-slate-700">Mostrar precios</span>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="cfgPrices" checked class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10"/>
+                                <label for="cfgPrices" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-slate-700">Mostrar dimensiones</span>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="cfgDims" checked class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10"/>
+                                <label for="cfgDims" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-sm text-slate-700">Mostrar técnica</span>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" name="toggle" id="cfgMedium" checked class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10"/>
+                                <label for="cfgMedium" class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center opacity-50 pointer-events-none">
+                            <span class="text-sm text-slate-700">Ficha técnica completa</span>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none">
+                                <input type="checkbox" checked class="toggle-checkbox absolute block w-5 h-5 rounded-full bg-white border-4 border-gray-300 appearance-none"/>
+                                <label class="toggle-label block overflow-hidden h-5 rounded-full bg-gray-300"></label>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-center opacity-50 pointer-events-none">
+                            <span class="text-sm text-slate-700">Incluir biografía del artista</span>
+                            <div class="relative inline-block w-10 mr-2 align-middle select-none">
+                                <input type="checkbox" class="absolute block w-5 h-5 rounded-full bg-white border-4 border-gray-300 appearance-none"/>
+                                <label class="block overflow-hidden h-5 rounded-full bg-gray-300"></label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Diseño de página (Decorativo por ahora, el PDF se mantiene en 1) -->
+                <div>
+                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-3">DISEÑO DE PÁGINA</h3>
+                    <div class="flex border border-gray-200 rounded overflow-hidden mb-4">
+                        <button class="flex-1 py-2 text-[10px] font-bold bg-slate-900 text-white text-center border-r border-slate-700">1 obra<br>por página</button>
+                        <button class="flex-1 py-2 text-[10px] font-medium bg-gray-50 text-slate-600 text-center border-r border-gray-200 hover:bg-gray-100">2 obras<br>por página</button>
+                        <button class="flex-1 py-2 text-[10px] font-medium bg-gray-50 text-slate-600 text-center hover:bg-gray-100">4 obras<br>por página</button>
+                    </div>
+
+                    <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2 mt-6">PLANTILLA</h3>
+                    <select class="w-full border border-gray-200 rounded p-2 text-sm text-slate-700 mb-4 focus:outline-none focus:border-slate-400">
+                        <option>Comercial - Ventas</option>
+                        <option>Exposición Galerías</option>
+                    </select>
+
+                    <div class="border border-gray-200 p-2 rounded bg-gray-50 flex items-center gap-4">
+                        <div class="w-20 h-28 bg-slate-900 rounded shadow-sm relative overflow-hidden flex flex-col items-center justify-center border border-slate-800">
+                            <div class="text-[5px] text-white/50 mb-1">RTBROK</div>
+                            <div class="text-[4px] text-white text-center font-serif px-2">CATÁLOGO DE ESCULTURA</div>
+                            <div class="absolute bottom-0 w-full h-1/2 bg-gradient-to-t from-black/80 to-transparent"></div>
+                        </div>
+                        <div class="text-xs text-slate-500 space-y-1.5 flex-1">
+                            <div class="flex items-center gap-2"><div class="w-1 h-1 rounded-full bg-gray-400"></div> Portada</div>
+                            <div class="flex items-center gap-2"><div class="w-1 h-1 rounded-full bg-gray-400"></div> Obras</div>
+                            <div class="flex items-center gap-2"><div class="w-1 h-1 rounded-full bg-gray-400"></div> Precios visibles</div>
+                            <div class="flex items-center gap-2"><div class="w-1 h-1 rounded-full bg-gray-400"></div> Información de contacto</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </aside>
+    </div>
+
+    <!-- BARRA INFERIOR (Acciones) -->
+    <footer class="bg-slate-900 text-white border-t border-slate-800 h-14 flex items-center justify-center gap-8 shrink-0 text-xs font-bold tracking-wider z-20">
+        <button class="hover:text-blue-400 transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed" title="Próximamente"><i class="fas fa-file-excel text-sm"></i> EXPORTAR EXCEL</button>
+        <button class="hover:text-blue-400 transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed" title="Próximamente"><i class="fas fa-link text-sm"></i> COMPARTIR LINK</button>
+        <div class="w-px h-6 bg-slate-700"></div>
+        <button class="hover:text-blue-400 transition-colors flex items-center gap-2"><i class="fas fa-save text-sm"></i> GUARDAR CATÁLOGO</button>
+        <button class="hover:text-blue-400 transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed" title="Próximamente"><i class="far fa-copy text-sm"></i> DUPLICAR CATÁLOGO</button>
+        <button class="hover:text-blue-400 transition-colors flex items-center gap-2 opacity-50 cursor-not-allowed" title="Próximamente"><i class="fas fa-history text-sm"></i> HISTORIAL</button>
+    </footer>
+
+    <!-- LOADER OVERLAY -->
+    <div id="loader" class="fixed inset-0 loading-overlay z-50 flex items-center justify-center flex-col hidden">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-slate-900 mb-4"></div>
+        <h3 class="text-xl font-serif text-slate-900 font-bold text-center" id="loaderText">Conectando a base de datos...</h3>
+    </div>
+
+<script>
+// --- CONFIGURACIÓN Y ESTADO ---
+const DB_URL = "https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec";
+let dbRegistrosObra = []; 
+let filteredRegistros = [];
+let selectedIds = new Set(); // Guarda los IDs de las obras seleccionadas
+const { jsPDF } = window.jspdf;
+const LOGO_PATH = 'rtbrok_logo.png'; // Cambiar si tienes un logo local real
+const AVAILABILITY_TEXT = "TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CONFIRMACIÓN";
+
+// DOM Elements
+const gridContainer = document.getElementById('gridContainer');
+const emptyState = document.getElementById('emptyState');
+const resultsCount = document.getElementById('resultsCount');
+const selectedCountText = document.getElementById('selectedCountText');
+const totalValueText = document.getElementById('totalValueText');
+
+// --- INICIALIZACIÓN ---
+window.onload = async () => {
+    await fetchDatabase();
+};
+
+async function fetchDatabase() {
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loaderText');
+    loaderText.innerText = "Cargando obras del inventario...";
+    loader.classList.remove('hidden');
+
+    try {
+        const response = await fetch(DB_URL);
+        const data = await response.json();
+        
+        if (data.registrosObra && Array.isArray(data.registrosObra)) {
+            // Limpiar datos y asignar IDs seguros si no existen
+            dbRegistrosObra = data.registrosObra.map((obra, i) => ({
+                ...obra,
+                id: obra.id || `obra_${i}_${Date.now()}`
+            }));
+            filteredRegistros = [...dbRegistrosObra];
+            
+            populateSidebarFilters();
+            renderGrid(filteredRegistros);
+        } else {
+            throw new Error("La estructura de la DB no es la esperada.");
+        }
+    } catch (error) {
+        console.error("Error al cargar desde DB:", error);
+        alert("Error al cargar el inventario. Verifica la conexión a internet o la URL de AppScript.");
+    } finally {
+        loader.classList.add('hidden');
+    }
+}
+
+// --- UTILIDADES ---
+function formatCurrency(value) {
+    const num = parseFloat(value);
+    if (isNaN(num)) return "$0";
+    return "$" + num.toLocaleString('en-US');
+}
+
+function extractImageDirectUrl(adjunto) {
+    if (!adjunto) return null;
+    const url = typeof adjunto === 'string' ? adjunto : (adjunto.url || '');
+    if (!url) return null;
+
+    // Convertir para visualización rápida (thumbnail en Google Drive)
+    const fileIdMatch = url.match(/[-\w]{25,}/);
+    if (fileIdMatch) {
+        return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}=s400`; // s400 recorta el tamaño para carga rápida
+    }
+    return url;
+}
+
+// --- UI DEL PANEL IZQUIERDO (FILTROS) ---
+function toggleAccordion(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById('icon-' + id);
+    if(el.classList.contains('hidden')) {
+        el.classList.remove('hidden');
+        icon.classList.remove('rotate-180');
+    } else {
+        el.classList.add('hidden');
+        icon.classList.add('rotate-180');
+    }
+}
+
+function populateSidebarFilters() {
+    // Autores
+    const autoresCounts = {};
+    dbRegistrosObra.forEach(o => {
+        const autor = (o.autor || "Desconocido").trim();
+        autoresCounts[autor] = (autoresCounts[autor] || 0) + 1;
+    });
+    
+    // Ordenar por cantidad (mayor a menor)
+    const sortedAutores = Object.entries(autoresCounts).sort((a, b) => b[1] - a[1]);
+    const autoresListEl = document.getElementById('filterAutoresList');
+    autoresListEl.innerHTML = '';
+    
+    sortedAutores.forEach(([autor, count]) => {
+        autoresListEl.innerHTML += `
+            <label class="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                <input type="checkbox" value="${autor}" class="autor-checkbox w-3.5 h-3.5 text-slate-800 border-gray-300 rounded focus:ring-slate-800">
+                <span class="text-sm text-slate-700 flex-1 truncate">${autor}</span>
+                <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 rounded-full">${count}</span>
+            </label>
+        `;
+    });
+
+    // Técnicas
+    const tecnicas = [...new Set(dbRegistrosObra.map(o => (o.tipo_obra || "No definido").trim()))].filter(Boolean).sort();
+    const selTecnica = document.getElementById('filterTecnica');
+    selTecnica.innerHTML = '<option value="">Todas las técnicas</option>' + tecnicas.map(t => `<option value="${t}">${t}</option>`).join('');
+
+    // Listener para búsqueda de autores en filtro
+    document.getElementById('searchAutor').addEventListener('input', (e) => {
+        const term = e.target.value.toLowerCase();
+        Array.from(autoresListEl.children).forEach(label => {
+            const autorName = label.querySelector('span.text-sm').innerText.toLowerCase();
+            label.style.display = autorName.includes(term) ? 'flex' : 'none';
+        });
+    });
+
+    // Búsqueda global
+    document.getElementById('globalSearch').addEventListener('input', applyFilters);
+}
+
+function applyFilters() {
+    const globalTerm = document.getElementById('globalSearch').value.toLowerCase().trim();
+    
+    // Recolectar autores seleccionados
+    const selectedAutores = Array.from(document.querySelectorAll('.autor-checkbox:checked')).map(cb => cb.value);
+    
+    const tecnica = document.getElementById('filterTecnica').value;
+    const pMin = parseFloat(document.getElementById('filterPriceMin').value) || 0;
+    const pMax = parseFloat(document.getElementById('filterPriceMax').value) || Infinity;
+
+    filteredRegistros = dbRegistrosObra.filter(obra => {
+        const oAutor = (obra.autor || "Desconocido").trim();
+        const oTecnica = (obra.tipo_obra || "No definido").trim();
+        const oPrecio = parseFloat(obra.precio_lista) || 0;
+        const oClave = (obra.clave || "").toLowerCase();
+        const oNombre = (obra.nombre_obra || "").toLowerCase();
+
+        // Filtro Global
+        if (globalTerm) {
+            const matchesGlobal = 
+                oNombre.includes(globalTerm) || 
+                oAutor.toLowerCase().includes(globalTerm) || 
+                oTecnica.toLowerCase().includes(globalTerm) ||
+                oClave.includes(globalTerm);
+            if (!matchesGlobal) return false;
+        }
+
+        if (selectedAutores.length > 0 && !selectedAutores.includes(oAutor)) return false;
+        if (tecnica && oTecnica !== tecnica) return false;
+        if (oPrecio < pMin || (pMax !== Infinity && oPrecio > pMax)) return false;
+
+        return true;
+    });
+
+    renderGrid(filteredRegistros);
+}
+
+function clearFilters() {
+    document.getElementById('globalSearch').value = '';
+    document.querySelectorAll('.autor-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('filterTecnica').value = '';
+    document.getElementById('filterPriceMin').value = '';
+    document.getElementById('filterPriceMax').value = '';
+    
+    filteredRegistros = [...dbRegistrosObra];
+    renderGrid(filteredRegistros);
+}
+
+// --- RENDERIZADO DEL GRID ---
+function renderGrid(obras) {
+    gridContainer.innerHTML = '';
+    resultsCount.innerText = `${obras.length} obras encontradas`;
+
+    if (obras.length === 0) {
+        gridContainer.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        return;
+    }
+
+    gridContainer.classList.remove('hidden');
+    emptyState.classList.add('hidden');
+
+    obras.forEach(obra => {
+        const isSelected = selectedIds.has(obra.id);
+        const imageUrl = (obra.adjuntos && obra.adjuntos.length > 0) ? extractImageDirectUrl(obra.adjuntos[0]) : null;
+        const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' fill='%23f3f4f6'><rect width='100%' height='100%'/><path d='M150 250 L200 180 L250 250 Z' fill='%23cbd5e1'/><circle cx='250' cy='150' r='20' fill='%23cbd5e1'/></svg>`;
+        
+        const dimArr = [];
+        if (obra.alto) dimArr.push(obra.alto);
+        if (obra.ancho) dimArr.push(obra.ancho);
+        if (obra.largo) dimArr.push(obra.largo);
+        const dimensionStr = dimArr.length > 0 ? `${dimArr.join(' x ')} cm` : "Dimensiones no especificadas";
+
+        const precioStr = obra.precio_lista ? formatCurrency(obra.precio_lista) : "Precio a consultar";
+
+        const card = document.createElement('div');
+        card.className = `bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border ${isSelected ? 'border-slate-800 ring-1 ring-slate-800' : 'border-gray-200'} flex flex-col group`;
+        
+        card.innerHTML = `
+            <div class="relative bg-gray-100 aspect-square flex items-center justify-center overflow-hidden cursor-pointer" onclick="toggleCheckboxFromCard('${obra.id}')">
+                <img src="${imageUrl || fallbackSvg}" 
+                     onerror="this.src='${fallbackSvg}'" 
+                     class="w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 p-4" 
+                     loading="lazy" alt="Obra">
+                
+                <div class="absolute top-3 left-3" onclick="event.stopPropagation()">
+                    <input type="checkbox" id="chk-${obra.id}" class="img-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleSelection('${obra.id}')">
+                </div>
+                ${!imageUrl ? '<span class="absolute text-[10px] text-gray-400 font-bold tracking-widest bottom-2">SIN IMAGEN</span>' : ''}
+            </div>
+            
+            <div class="p-4 flex flex-col flex-1">
+                <h3 class="font-bold text-slate-800 text-sm mb-1 leading-tight line-clamp-1">${obra.nombre_obra || 'Sin Título'}</h3>
+                <p class="text-xs text-slate-500 mb-2 truncate">${obra.autor || 'Desconocido'}</p>
+                
+                <div class="space-y-1 mb-4 flex-1">
+                    <p class="text-[11px] text-slate-600 truncate">${obra.tipo_obra || 'Técnica mixta'}</p>
+                    <p class="text-[11px] text-slate-600 truncate">${dimensionStr}</p>
+                </div>
+                
+                <div class="flex justify-between items-end mt-auto pt-3 border-t border-gray-100">
+                    <div>
+                        <p class="font-bold text-slate-900 text-sm">${precioStr} <span class="text-[9px] font-normal text-slate-500 uppercase">MXN</span></p>
+                        <p class="text-[10px] text-gray-400 mt-0.5 truncate max-w-[120px]">${obra.ubicacion || 'México'}</p>
+                    </div>
+                    <button class="text-gray-300 hover:text-slate-800 transition-colors"><i class="far fa-bookmark"></i></button>
+                </div>
+            </div>
+        `;
+        gridContainer.appendChild(card);
+    });
+}
+
+// --- LOGICA DE SELECCIÓN Y CONFIGURACIÓN ---
+function toggleCheckboxFromCard(id) {
+    const chk = document.getElementById(`chk-${id}`);
+    chk.checked = !chk.checked;
+    toggleSelection(id);
+}
+
+function toggleSelection(id) {
+    if (selectedIds.has(id)) {
+        selectedIds.delete(id);
+    } else {
+        selectedIds.add(id);
+    }
+    updateSummaryPanel();
+    // Re-render visual borders slightly more heavy, but easier to just re-render grid
+    renderGrid(filteredRegistros); 
+}
+
+function clearSelection() {
+    selectedIds.clear();
+    updateSummaryPanel();
+    renderGrid(filteredRegistros);
+}
+
+function updateSummaryPanel() {
+    const selectedCount = selectedIds.size;
+    selectedCountText.innerText = `${selectedCount} obra${selectedCount !== 1 ? 's' : ''} seleccionada${selectedCount !== 1 ? 's' : ''}`;
+
+    let totalVal = 0;
+    dbRegistrosObra.forEach(o => {
+        if (selectedIds.has(o.id) && o.precio_lista) {
+            totalVal += parseFloat(o.precio_lista) || 0;
+        }
+    });
+
+    totalValueText.innerText = `${formatCurrency(totalVal)} MXN`;
+}
+
+// --- GENERACIÓN DE PDF (BASE64 & LÓGICA) ---
+
+function convertGoogleDriveUrl(url) {
+    if (!url) return null;
+    const fileIdMatch = url.match(/[-\w]{25,}/);
+    if (fileIdMatch) return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`;
+    return url;
+}
+
+async function loadExternalImageAsBase64(url) {
+    if (!url) return null;
+    if (url.startsWith('data:')) return url;
+    
+    const convertedUrl = convertGoogleDriveUrl(url);
+    
+    try {
+        const response = await fetch(convertedUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error('Fetch failed, trying Image fallback', error);
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                try {
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                } catch (e) { resolve(null); }
+            };
+            img.onerror = () => resolve(null);
+            img.src = convertedUrl;
+        });
+    }
+}
+
+async function prepareAndGeneratePDF() {
+    if (selectedIds.size === 0) {
+        alert("Por favor selecciona al menos una obra para generar el catálogo.");
+        return;
+    }
+
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loaderText');
+    loader.classList.remove('hidden');
+
+    try {
+        // 1. Obtener las obras seleccionadas (manteniendo orden original de la DB o orden de selección, usaremos DB orden por ahora)
+        const obrasParaPDF = dbRegistrosObra.filter(o => selectedIds.has(o.id));
+        const artworks = [];
+
+        // 2. Convertir imágenes a Base64
+        for (let i = 0; i < obrasParaPDF.length; i++) {
+            const obra = obrasParaPDF[i];
+            loaderText.innerText = `Procesando imagen ${i + 1} de ${obrasParaPDF.length}...`;
+            
+            let imageBase64 = null;
+            if (obra.adjuntos && obra.adjuntos.length > 0) {
+                const rawUrl = typeof obra.adjuntos[0] === 'string' ? obra.adjuntos[0] : (obra.adjuntos[0].url || '');
+                imageBase64 = await loadExternalImageAsBase64(rawUrl);
+            }
+            
+            const fallbackBase64 = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" fill="%23f3f4f6"><rect width="100%" height="100%"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="%239ca3af" text-anchor="middle" dominant-baseline="middle">SIN IMAGEN</text></svg>';
+
+            const dimArr = [];
+            if (obra.alto) dimArr.push(obra.alto);
+            if (obra.ancho) dimArr.push(obra.ancho);
+            if (obra.largo) dimArr.push(obra.largo);
+            const dimensionStr = dimArr.length > 0 ? `${dimArr.join(' x ')} cm` : "";
+
+            const precioStr = obra.precio_lista ? formatCurrency(obra.precio_lista) : "";
+
+            artworks.push({
+                image: imageBase64 || fallbackBase64,
+                title: (obra.nombre_obra || "SIN TÍTULO").toUpperCase(),
+                artist: (obra.autor || "").toUpperCase(),
+                medium: (obra.tipo_obra || "").toUpperCase(),
+                dimensions: dimensionStr,
+                price: precioStr,
+                code: (obra.clave || ("CAT-" + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
+                isUnique: true // Por defecto en DB real
+            });
+        }
+
+        // 3. Obtener configuración
+        loaderText.innerText = "Generando PDF...";
+        const cfg = {
+            artistName: document.getElementById('pdfArtistName').value.trim() || "CATÁLOGO",
+            subtitle: document.getElementById('pdfSubtitle').value.trim() || "OBRA SELECCIONADA",
+            updateText: document.getElementById('pdfUpdateText').value.trim(),
+            legalNote: document.getElementById('pdfLegalNote').value.trim(),
+            showPrices: document.getElementById('cfgPrices').checked,
+            showDims: document.getElementById('cfgDims').checked,
+            showMedium: document.getElementById('cfgMedium').checked
+        };
+
+        // 4. Ejecutar creación del PDF con jsPDF
+        await createPDFDocument(artworks, cfg);
+
+    } catch (error) {
+        console.error("Error crítico generando PDF:", error);
+        alert("Ocurrió un error al procesar el PDF.");
+    } finally {
+        loader.classList.add('hidden');
+    }
+}
+
+async function createPDFDocument(artworks, cfg) {
+    const doc = new jsPDF('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    // Logo placeholder fallback
+    let logoData = null;
+    try {
+        const response = await fetch(LOGO_PATH);
+        if(response.ok) {
+            const blob = await response.blob();
+            logoData = await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+    } catch (e) {}
+
+    // --- PÁGINA 1: PORTADA ---
+    const titleY = 120;
+    doc.setTextColor(0);
+    doc.setFont("times", "normal");
+    doc.setFontSize(32);
+    doc.text(cfg.artistName.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: "center" });
+    
+    doc.setFontSize(10);
+    doc.text(cfg.subtitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: "center" });
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text(cfg.updateText.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: "center" });
+    
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    const splitNote = doc.splitTextToSize(cfg.legalNote, 150);
+    doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: "center" });
+
+    // --- PÁGINAS DE OBRAS (1 por página) ---
+    for (let i = 0; i < artworks.length; i++) {
+        doc.addPage();
+        const art = artworks[i];
+        const currentArtist = art.artist.trim() || cfg.artistName;
+        const margin = 25;
+        
+        let imageData = art.image;
+        
+        if(imageData && imageData.startsWith('data:')) {
+            try {
+                const img = new Image();
+                img.src = imageData;
+                await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+                const maxWidth = 160;
+                const maxHeight = 170;
+                const imgRatio = img.width / img.height;
+                const boxRatio = maxWidth / maxHeight;
+                
+                let renderW, renderH;
+                if (imgRatio > boxRatio) {
+                    renderW = maxWidth;
+                    renderH = maxWidth / imgRatio;
+                } else {
+                    renderH = maxHeight;
+                    renderW = maxHeight * imgRatio;
+                }
+
+                const offsetX = margin + (maxWidth - renderW) / 2;
+                const offsetY = 40 + (maxHeight - renderH) / 2;
+
+                doc.addImage(imageData, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+            } catch(err) {
+                doc.setFillColor(245, 245, 245);
+                doc.rect(margin, 40, 160, 150, 'F');
+                doc.setTextColor(150);
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(10);
+                doc.text("IMAGEN NO DISPONIBLE", pageWidth / 2, 115, { align: "center" });
+            }
+        }
+
+        // Títulos y Detalles
+        doc.setTextColor(0);
+        doc.setFont("times", "bold");
+        doc.setFontSize(16);
+        doc.text(`"${art.title}"`, pageWidth - margin, 240, { align: "right" });
+        
+        if(art.artist) {
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(10);
+            doc.setTextColor(100);
+            doc.text(art.artist, pageWidth - margin, 247, { align: "right" });
+        }
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(80);
+        
+        // Aplica Toggles de configuración visual
+        let info = [];
+        if (art.isUnique) info.push("OBRA ÚNICA");
+        if (cfg.showMedium && art.medium) info.push(art.medium);
+        if (cfg.showDims && art.dimensions) info.push(art.dimensions);
+        if (cfg.showPrices && art.price) info.push(art.price);
+        if (art.code) info.push(art.code);
+        
+        doc.text(info.join('  |  ').toUpperCase(), pageWidth - margin, 258, { align: "right" });
+
+        // Footer
+        doc.setDrawColor(200);
+        doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
+
+        doc.setFontSize(6);
+        doc.setTextColor(150);
+        doc.setFont("helvetica", "bold");
+        doc.text(AVAILABILITY_TEXT, margin, pageHeight - 14);
+        
+        const footerString = `${currentArtist.toUpperCase()}  •  ${cfg.updateText}  •  PÁGINA ${i + 1}`;
+        doc.text(footerString, pageWidth - margin, pageHeight - 14, { align: "right" });
+    }
+
+    doc.save(`CATALOGO_${cfg.artistName.replace(/\s+/g, '_')}.pdf`);
+}
+</script>
+</body>
+</html>
