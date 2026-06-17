@@ -11,7 +11,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght=300;400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
 
         body {
             font-family: 'Roboto', sans-serif;
@@ -437,7 +437,7 @@
         <h3 class="text-xl font-serif text-slate-900 font-bold text-center" id="loaderText">Cargando base de datos...</h3>
     </div>
 
-    <!-- NOTIFICACIONES CUSTOM (Evitamos usar alert() directo en UI bonita) -->
+    <!-- NOTIFICACIONES CUSTOM -->
     <div id="customToast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs px-4 py-3 rounded-md shadow-lg flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-5 pointer-events-none z-50">
         <span id="toastIcon"><i class="fas fa-info-circle text-blue-400"></i></span>
         <span id="toastMessage"></span>
@@ -465,7 +465,7 @@ const totalValueText = document.getElementById('totalValueText');
 // --- CARGA DE LA BASE DE DATOS ---
 window.addEventListener('DOMContentLoaded', async () => {
     await fetchSheetsDatabase();
-    loadLocalCatalogs(); // Inicializa los guardados locales en memoria
+    loadLocalCatalogs(); 
 });
 
 // Función de notificaciones visuales (Toast)
@@ -530,10 +530,8 @@ function getLH3ImageUrl(adjuntosArray) {
     const url = typeof adjunto === 'string' ? adjunto : (adjunto.url || '');
     if (!url) return null;
 
-    // Extraer ID de archivo de Google Drive
     const fileIdMatch = url.match(/[-\w]{25,}/);
     if (fileIdMatch) {
-        // Obtenemos una versión mediana optimizada para rendimiento del navegador (s400)
         return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}=s400`;
     }
     return url;
@@ -599,7 +597,6 @@ function buildDynamicFilters() {
         }
     });
 
-    // Encontrar proveedores usados en las obras actuales
     const proveedoresIdsUsados = [...new Set(rawObras.map(o => (o.provenance || "").toString().trim()))].filter(Boolean);
     filterProveedor.innerHTML = '<option value="">Seleccionar proveedor</option>';
     proveedoresIdsUsados.forEach(id => {
@@ -634,16 +631,12 @@ function applyFilters() {
     const selectProveedor = document.getElementById('filterProveedor').value;
     const selectUbicacion = document.getElementById('filterUbicacion').value;
     
-    // Autores chequeados
     const checkedAutores = Array.from(document.querySelectorAll('.autor-checkbox:checked')).map(cb => cb.value);
-    // Disponibilidades/Estatus chequeados
     const checkedDispos = Array.from(document.querySelectorAll('.dispo-checkbox:checked')).map(cb => cb.value);
 
-    // Precios
     const priceMin = parseFloat(document.getElementById('filterPriceMin').value) || 0;
     const priceMax = parseFloat(document.getElementById('filterPriceMax').value) || Infinity;
 
-    // Tamaños (cm)
     const anchoMin = parseFloat(document.getElementById('filterAnchoMin').value) || 0;
     const altoMin = parseFloat(document.getElementById('filterAltoMin').value) || 0;
     const anchoMax = parseFloat(document.getElementById('filterAnchoMax').value) || Infinity;
@@ -662,7 +655,6 @@ function applyFilters() {
         const oAlto = parseFloat(o.alto) || 0;
         const oPrecio = parseFloat(o.precio_lista) || 0;
 
-        // Búsqueda global
         if (globalSearch) {
             const matchesGlobal = oNombre.includes(globalSearch) || 
                                   oAutor.includes(globalSearch) || 
@@ -671,25 +663,12 @@ function applyFilters() {
             if (!matchesGlobal) return false;
         }
 
-        // Filtro Autor Checkbox
         if (checkedAutores.length > 0 && !checkedAutores.includes(o.autor)) return false;
-
-        // Filtro Disponibilidad Checkbox
         if (checkedDispos.length > 0 && !checkedDispos.includes(oEstatus)) return false;
-
-        // Filtro Técnica Select
         if (selectTecnica && o.tipo_obra !== selectTecnica) return false;
-
-        // Filtro Proveedor Select
         if (selectProveedor && oProv.toString().trim() !== selectProveedor.toString().trim()) return false;
-
-        // Filtro Ubicación Select
         if (selectUbicacion && oUbicacion !== selectUbicacion) return false;
-
-        // Filtro Rango de Precios
         if (oPrecio < priceMin || (priceMax !== Infinity && oPrecio > priceMax)) return false;
-
-        // Filtro Rango de Medidas (cm)
         if (oAncho < anchoMin || (anchoMax !== Infinity && oAncho > anchoMax)) return false;
         if (oAlto < altoMin || (altoMax !== Infinity && oAlto > altoMax)) return false;
 
@@ -760,6 +739,8 @@ function renderGrid(obras) {
         const precioFormatted = precio > 0 ? `$${precio.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : "A consultar";
 
         const card = document.createElement('div');
+        // Agregamos un ID único al elemento HTML de la tarjeta para poder manipularla individualmente
+        card.id = `card-${obra.id}`;
         card.className = `bg-white rounded-lg overflow-hidden border transition-all duration-200 flex flex-col group relative ${
             isSelected ? 'border-slate-800 ring-1 ring-slate-800 shadow-md' : 'border-gray-200 hover:shadow-sm'
         }`;
@@ -810,20 +791,43 @@ function toggleCardSelection(id) {
     }
 }
 
+// OPTIMIZADO: Ahora actualizamos directamente el elemento en el DOM sin recargar todo el gridContainer.
+// Esto previene que se re-ordene, parpadee o cambie el scroll al hacer clic.
 function toggleCheckboxSelection(id) {
     if (selectedIds.has(id)) {
         selectedIds.delete(id);
     } else {
         selectedIds.add(id);
     }
+    
+    // Obtenemos las referencias directas en el DOM
+    const cardElement = document.getElementById(`card-${id}`);
+    const checkboxElement = document.getElementById(`chk-${id}`);
+    const isNowSelected = selectedIds.has(id);
+
+    // Cambiamos clases CSS de manera atómica para evitar flickering
+    if (cardElement) {
+        if (isNowSelected) {
+            cardElement.classList.add('border-slate-800', 'ring-1', 'ring-slate-800', 'shadow-md');
+            cardElement.classList.remove('border-gray-200', 'hover:shadow-sm');
+        } else {
+            cardElement.classList.remove('border-slate-800', 'ring-1', 'ring-slate-800', 'shadow-md');
+            cardElement.classList.add('border-gray-200', 'hover:shadow-sm');
+        }
+    }
+
+    if (checkboxElement) {
+        checkboxElement.checked = isNowSelected;
+    }
+
+    // Actualizamos los contadores y precio total en la barra derecha
     updateSidebarSummary();
-    sortData(); 
 }
 
 function clearSelection() {
     selectedIds.clear();
     updateSidebarSummary();
-    sortData();
+    sortData(); // Para esta acción masiva sí reconstruimos para limpiar todo de golpe de forma segura
 }
 
 function updateSidebarSummary() {
@@ -885,10 +889,10 @@ function saveCatalogToLocal() {
     };
 
     const catalogs = getSavedCatalogs();
-    catalogs.unshift(newCatalog); // Insertar al inicio de la lista
+    catalogs.unshift(newCatalog); 
     localStorage.setItem('rtbrok_saved_catalogs', JSON.stringify(catalogs));
 
-    loadLocalCatalogs(); // Actualiza el panel UI
+    loadLocalCatalogs(); 
     showToast(`Catálogo "${name}" guardado exitosamente.`, "success");
 }
 
@@ -908,10 +912,8 @@ function loadSavedCatalog(id) {
         return;
     }
 
-    // Restaurar IDs seleccionados
     selectedIds = new Set(catalog.selectedIds);
 
-    // Restaurar inputs de configuración de PDF
     if (catalog.config) {
         document.getElementById('pdfArtistName').value = catalog.config.artistName || '';
         document.getElementById('pdfSubtitle').value = catalog.config.subtitle || '';
@@ -926,10 +928,9 @@ function loadSavedCatalog(id) {
         document.getElementById('cfgBiography').checked = catalog.config.cfgBiography;
     }
 
-    // Actualizar barra lateral y grilla
     updateSidebarSummary();
-    sortData();
-    toggleLocalCatalogsPanel(); // Cerrar panel al cargar
+    sortData(); // Reconstrucción justificada al cargar un estado completo
+    toggleLocalCatalogsPanel(); 
     showToast(`Catálogo "${catalog.title}" cargado correctamente.`, "success");
 }
 
@@ -975,7 +976,7 @@ function loadLocalCatalogs() {
 function toggleLocalCatalogsPanel() {
     const panel = document.getElementById('localCatalogsPanel');
     if (panel.classList.contains('hidden')) {
-        loadLocalCatalogs(); // Refresca la lista antes de mostrar
+        loadLocalCatalogs(); 
         panel.classList.remove('hidden');
     } else {
         panel.classList.add('hidden');
