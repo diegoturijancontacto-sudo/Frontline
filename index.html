@@ -144,6 +144,23 @@
 
                 <hr class="border-gray-100">
 
+                <!-- Filtro Categoría (Nuevo) -->
+                <div>
+                    <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Categoría</h3>
+                    <select id="filterCategoria" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <option value="">Todas las categorías</option>
+                        <option value="#Pintura">Pintura</option>
+                        <option value="#Escultura">Escultura</option>
+                        <option value="#Gráfica">Gráfica</option>
+                        <option value="#Fotografía">Fotografía</option>
+                        <option value="#Arte Digital">Arte Digital</option>
+                        <option value="#Instalación">Instalación</option>
+                        <option value="Objeto">Objeto</option>
+                    </select>
+                </div>
+
+                <hr class="border-gray-100">
+
                 <!-- Filtro Técnica -->
                 <div>
                     <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Técnica</h3>
@@ -222,11 +239,16 @@
                     </div>
                 </div>
 
-                <!-- Placeholders extras del UI -->
-                <div class="text-[10px] text-gray-300 font-bold tracking-widest pt-4">OTROS FILTROS</div>
-                <div class="flex justify-between items-center text-xs text-slate-400 cursor-not-allowed">AÑO <i class="fas fa-chevron-down text-[10px]"></i></div>
-                <div class="flex justify-between items-center text-xs text-slate-400 cursor-not-allowed">COLECCIÓN <i class="fas fa-chevron-down text-[10px]"></i></div>
-                <div class="flex justify-between items-center text-xs text-slate-400 cursor-not-allowed">ESTATUS AUTENTICACIÓN <i class="fas fa-chevron-down text-[10px]"></i></div>
+                <hr class="border-gray-100">
+
+                <!-- Filtro Certificado (Nuevo) -->
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700 hover:text-slate-900">
+                        <input type="checkbox" id="filterCertificado" class="w-3.5 h-3.5 text-slate-800 border-gray-300 rounded focus:ring-slate-800">
+                        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Solo con Certificado</span>
+                    </label>
+                </div>
+
             </div>
             
             <div class="p-4 border-t border-gray-200 bg-gray-50 flex gap-2">
@@ -630,6 +652,8 @@ function applyFilters() {
     const selectTecnica = document.getElementById('filterTecnica').value;
     const selectProveedor = document.getElementById('filterProveedor').value;
     const selectUbicacion = document.getElementById('filterUbicacion').value;
+    const selectCategoria = document.getElementById('filterCategoria').value;
+    const checkCertificado = document.getElementById('filterCertificado').checked;
     
     const checkedAutores = Array.from(document.querySelectorAll('.autor-checkbox:checked')).map(cb => cb.value);
     const checkedDispos = Array.from(document.querySelectorAll('.dispo-checkbox:checked')).map(cb => cb.value);
@@ -650,6 +674,9 @@ function applyFilters() {
         const oUbicacion = o.ubicacion || "";
         const oEstatus = o.estatus || "";
         const oProv = o.provenance || "";
+        
+        // Tags convertidos a minúsculas para un chequeo confiable
+        const oTagsLower = Array.isArray(o.tags) ? o.tags.map(t => typeof t === 'string' ? t.toLowerCase().trim() : '') : [];
         
         const oAncho = parseFloat(o.ancho) || 0;
         const oAlto = parseFloat(o.alto) || 0;
@@ -672,6 +699,10 @@ function applyFilters() {
         if (oAncho < anchoMin || (anchoMax !== Infinity && oAncho > anchoMax)) return false;
         if (oAlto < altoMin || (altoMax !== Infinity && oAlto > altoMax)) return false;
 
+        // Nuevos Filtros de Categoría y Certificado (Usando búsqueda segura en minúsculas)
+        if (selectCategoria && !oTagsLower.includes(selectCategoria.toLowerCase())) return false;
+        if (checkCertificado && !oTagsLower.includes('#certificado')) return false;
+
         return true;
     });
 
@@ -692,6 +723,7 @@ function sortData() {
 
 function clearFilters() {
     document.getElementById('globalSearch').value = '';
+    document.getElementById('filterCategoria').value = '';
     document.getElementById('filterTecnica').value = '';
     document.getElementById('filterProveedor').value = '';
     document.getElementById('filterUbicacion').value = '';
@@ -702,6 +734,7 @@ function clearFilters() {
     document.getElementById('filterAltoMin').value = '';
     document.getElementById('filterAltoMax').value = '';
     document.getElementById('searchAutor').value = '';
+    document.getElementById('filterCertificado').checked = false;
 
     document.querySelectorAll('.autor-checkbox').forEach(cb => cb.checked = false);
     document.querySelectorAll('.dispo-checkbox').forEach(cb => cb.checked = false);
