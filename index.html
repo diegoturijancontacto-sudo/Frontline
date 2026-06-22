@@ -84,6 +84,29 @@
             background-color: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(4px);
         }
+        
+        /* Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #1e293b;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #cbd5e1;
+            border-radius: 2px;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col text-slate-800">
@@ -144,7 +167,7 @@
 
                 <hr class="border-gray-100">
 
-                <!-- Filtro Categoría (Nuevo) -->
+                <!-- Filtro Categoría -->
                 <div>
                     <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Categoría</h3>
                     <select id="filterCategoria" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
@@ -171,42 +194,30 @@
 
                 <hr class="border-gray-100">
 
-                <!-- Filtro Precio (MXN) -->
+                <!-- Filtro Precio con Slider -->
                 <div>
-                    <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Precio (MXN)</h3>
-                    <div class="flex gap-2">
-                        <div class="flex-1">
-                            <input type="number" id="filterPriceMin" placeholder="Desde" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400">
-                        </div>
-                        <div class="flex-1">
-                            <input type="number" id="filterPriceMax" placeholder="Hasta" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400">
-                        </div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Precio Máximo</h3>
+                        <span id="priceLabel" class="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Cargando...</span>
+                    </div>
+                    <div class="px-1">
+                        <input type="range" id="filterPriceRange" min="0" max="100000" value="100000" class="w-full" oninput="updatePriceLabel()">
                     </div>
                 </div>
 
                 <hr class="border-gray-100">
 
-                <!-- Filtro Tamaño (cm) -->
+                <!-- Filtro Tamaño Dimensional -->
                 <div>
-                    <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Tamaño (cm)</h3>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-[9px] text-gray-400 block">Ancho mín</label>
-                            <input type="number" id="filterAnchoMin" placeholder="0" class="w-full border border-gray-200 rounded p-1.5 text-xs focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="text-[9px] text-gray-400 block">Alto mín</label>
-                            <input type="number" id="filterAltoMin" placeholder="0" class="w-full border border-gray-200 rounded p-1.5 text-xs focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="text-[9px] text-gray-400 block">Ancho máx</label>
-                            <input type="number" id="filterAnchoMax" placeholder="200" class="w-full border border-gray-200 rounded p-1.5 text-xs focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="text-[9px] text-gray-400 block">Alto máx</label>
-                            <input type="number" id="filterAltoMax" placeholder="200" class="w-full border border-gray-200 rounded p-1.5 text-xs focus:outline-none">
-                        </div>
-                    </div>
+                    <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Tamaño Promedio</h3>
+                    <select id="filterSize" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <option value="">Cualquier tamaño</option>
+                        <option value="P">Pequeño (< 50 cm)</option>
+                        <option value="M">Mediano (50 - 100 cm)</option>
+                        <option value="G">Grande (100 - 200 cm)</option>
+                        <option value="X">Monumental (> 200 cm)</option>
+                    </select>
+                    <p class="text-[9px] text-gray-400 mt-1.5 leading-tight"><i class="fas fa-info-circle"></i> Promedio calculado entre el largo y el alto de la obra.</p>
                 </div>
 
                 <hr class="border-gray-100">
@@ -241,7 +252,7 @@
 
                 <hr class="border-gray-100">
 
-                <!-- Filtro Certificado (Nuevo) -->
+                <!-- Filtro Certificado -->
                 <div>
                     <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700 hover:text-slate-900">
                         <input type="checkbox" id="filterCertificado" class="w-3.5 h-3.5 text-slate-800 border-gray-300 rounded focus:ring-slate-800">
@@ -577,9 +588,14 @@ function getFullLH3ImageUrl(adjuntosArray) {
 function buildDynamicFilters() {
     // 1. AUTOR (Checkboxes dinámicos con conteos)
     const autorCounts = {};
+    let maxPrecioGlobal = 0; // Para el Slider
+
     rawObras.forEach(o => {
         const autor = (o.autor || "Desconocido").trim();
         autorCounts[autor] = (autorCounts[autor] || 0) + 1;
+        
+        const p = parseFloat(o.precio_lista) || 0;
+        if(p > maxPrecioGlobal) maxPrecioGlobal = p;
     });
     const sortedAutores = Object.entries(autorCounts).sort((a, b) => b[1] - a[1]);
     
@@ -644,6 +660,28 @@ function buildDynamicFilters() {
             </label>
         `;
     });
+
+    // 6. SETUP DEL SLIDER DE PRECIO
+    maxPrecioGlobal = Math.ceil(maxPrecioGlobal / 10000) * 10000 || 1000000; // Redondea al 10k más cercano
+    const priceRange = document.getElementById('filterPriceRange');
+    priceRange.max = maxPrecioGlobal;
+    priceRange.value = maxPrecioGlobal;
+    updatePriceLabel();
+}
+
+function updatePriceLabel() {
+    const val = document.getElementById('filterPriceRange').value;
+    const max = document.getElementById('filterPriceRange').max;
+    const label = document.getElementById('priceLabel');
+    if (val == max) {
+        label.innerText = "Cualquier Precio";
+        label.classList.remove('bg-blue-100', 'text-blue-700');
+        label.classList.add('bg-slate-100', 'text-slate-700');
+    } else {
+        label.innerText = `Hasta $${parseInt(val).toLocaleString('en-US')} MXN`;
+        label.classList.remove('bg-slate-100', 'text-slate-700');
+        label.classList.add('bg-blue-100', 'text-blue-700');
+    }
 }
 
 // --- APLICACIÓN DE FILTROS ---
@@ -654,17 +692,13 @@ function applyFilters() {
     const selectUbicacion = document.getElementById('filterUbicacion').value;
     const selectCategoria = document.getElementById('filterCategoria').value;
     const checkCertificado = document.getElementById('filterCertificado').checked;
+    const selectSize = document.getElementById('filterSize').value;
     
+    const maxPriceLimit = parseFloat(document.getElementById('filterPriceRange').value) || Infinity;
+    const isSliderActive = maxPriceLimit < parseFloat(document.getElementById('filterPriceRange').max);
+
     const checkedAutores = Array.from(document.querySelectorAll('.autor-checkbox:checked')).map(cb => cb.value);
     const checkedDispos = Array.from(document.querySelectorAll('.dispo-checkbox:checked')).map(cb => cb.value);
-
-    const priceMin = parseFloat(document.getElementById('filterPriceMin').value) || 0;
-    const priceMax = parseFloat(document.getElementById('filterPriceMax').value) || Infinity;
-
-    const anchoMin = parseFloat(document.getElementById('filterAnchoMin').value) || 0;
-    const altoMin = parseFloat(document.getElementById('filterAltoMin').value) || 0;
-    const anchoMax = parseFloat(document.getElementById('filterAnchoMax').value) || Infinity;
-    const altoMax = parseFloat(document.getElementById('filterAltoMax').value) || Infinity;
 
     filteredObras = rawObras.filter(o => {
         const oNombre = (o.nombre_obra || "").toLowerCase();
@@ -675,11 +709,9 @@ function applyFilters() {
         const oEstatus = o.estatus || "";
         const oProv = o.provenance || "";
         
-        // Tags convertidos a minúsculas para un chequeo confiable
+        // Tags convertidos a minúsculas
         const oTagsLower = Array.isArray(o.tags) ? o.tags.map(t => typeof t === 'string' ? t.toLowerCase().trim() : '') : [];
         
-        const oAncho = parseFloat(o.ancho) || 0;
-        const oAlto = parseFloat(o.alto) || 0;
         const oPrecio = parseFloat(o.precio_lista) || 0;
 
         if (globalSearch) {
@@ -695,11 +727,24 @@ function applyFilters() {
         if (selectTecnica && o.tipo_obra !== selectTecnica) return false;
         if (selectProveedor && oProv.toString().trim() !== selectProveedor.toString().trim()) return false;
         if (selectUbicacion && oUbicacion !== selectUbicacion) return false;
-        if (oPrecio < priceMin || (priceMax !== Infinity && oPrecio > priceMax)) return false;
-        if (oAncho < anchoMin || (anchoMax !== Infinity && oAncho > anchoMax)) return false;
-        if (oAlto < altoMin || (altoMax !== Infinity && oAlto > altoMax)) return false;
+        
+        // Filtro de Precio (Slider)
+        if (isSliderActive && oPrecio > maxPriceLimit) return false;
 
-        // Nuevos Filtros de Categoría y Certificado (Usando búsqueda segura en minúsculas)
+        // Filtro Dimensional (Promedio entre largo/ancho y alto)
+        if (selectSize) {
+            // Utilizamos el largo. En obras 2D suele estar en ancho, por lo que usamos el que tenga valor.
+            const dimensionPrimaria = parseFloat(o.largo) || parseFloat(o.ancho) || 0;
+            const dimensionSecundaria = parseFloat(o.alto) || 0;
+            const sizeAvg = (dimensionPrimaria + dimensionSecundaria) / 2;
+
+            if (selectSize === 'P' && sizeAvg >= 50) return false;
+            if (selectSize === 'M' && (sizeAvg < 50 || sizeAvg >= 100)) return false;
+            if (selectSize === 'G' && (sizeAvg < 100 || sizeAvg >= 200)) return false;
+            if (selectSize === 'X' && sizeAvg < 200) return false;
+        }
+
+        // Filtros de Categoría y Certificado
         if (selectCategoria && !oTagsLower.includes(selectCategoria.toLowerCase())) return false;
         if (checkCertificado && !oTagsLower.includes('#certificado')) return false;
 
@@ -727,14 +772,13 @@ function clearFilters() {
     document.getElementById('filterTecnica').value = '';
     document.getElementById('filterProveedor').value = '';
     document.getElementById('filterUbicacion').value = '';
-    document.getElementById('filterPriceMin').value = '';
-    document.getElementById('filterPriceMax').value = '';
-    document.getElementById('filterAnchoMin').value = '';
-    document.getElementById('filterAnchoMax').value = '';
-    document.getElementById('filterAltoMin').value = '';
-    document.getElementById('filterAltoMax').value = '';
     document.getElementById('searchAutor').value = '';
     document.getElementById('filterCertificado').checked = false;
+    document.getElementById('filterSize').value = '';
+
+    const priceRange = document.getElementById('filterPriceRange');
+    priceRange.value = priceRange.max;
+    updatePriceLabel();
 
     document.querySelectorAll('.autor-checkbox').forEach(cb => cb.checked = false);
     document.querySelectorAll('.dispo-checkbox').forEach(cb => cb.checked = false);
@@ -772,7 +816,6 @@ function renderGrid(obras) {
         const precioFormatted = precio > 0 ? `$${precio.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : "A consultar";
 
         const card = document.createElement('div');
-        // Agregamos un ID único al elemento HTML de la tarjeta para poder manipularla individualmente
         card.id = `card-${obra.id}`;
         card.className = `bg-white rounded-lg overflow-hidden border transition-all duration-200 flex flex-col group relative ${
             isSelected ? 'border-slate-800 ring-1 ring-slate-800 shadow-md' : 'border-gray-200 hover:shadow-sm'
@@ -824,8 +867,6 @@ function toggleCardSelection(id) {
     }
 }
 
-// OPTIMIZADO: Ahora actualizamos directamente el elemento en el DOM sin recargar todo el gridContainer.
-// Esto previene que se re-ordene, parpadee o cambie el scroll al hacer clic.
 function toggleCheckboxSelection(id) {
     if (selectedIds.has(id)) {
         selectedIds.delete(id);
@@ -833,12 +874,10 @@ function toggleCheckboxSelection(id) {
         selectedIds.add(id);
     }
     
-    // Obtenemos las referencias directas en el DOM
     const cardElement = document.getElementById(`card-${id}`);
     const checkboxElement = document.getElementById(`chk-${id}`);
     const isNowSelected = selectedIds.has(id);
 
-    // Cambiamos clases CSS de manera atómica para evitar flickering
     if (cardElement) {
         if (isNowSelected) {
             cardElement.classList.add('border-slate-800', 'ring-1', 'ring-slate-800', 'shadow-md');
@@ -853,14 +892,13 @@ function toggleCheckboxSelection(id) {
         checkboxElement.checked = isNowSelected;
     }
 
-    // Actualizamos los contadores y precio total en la barra derecha
     updateSidebarSummary();
 }
 
 function clearSelection() {
     selectedIds.clear();
     updateSidebarSummary();
-    sortData(); // Para esta acción masiva sí reconstruimos para limpiar todo de golpe de forma segura
+    sortData(); 
 }
 
 function updateSidebarSummary() {
@@ -962,7 +1000,7 @@ function loadSavedCatalog(id) {
     }
 
     updateSidebarSummary();
-    sortData(); // Reconstrucción justificada al cargar un estado completo
+    sortData(); 
     toggleLocalCatalogsPanel(); 
     showToast(`Catálogo "${catalog.title}" cargado correctamente.`, "success");
 }
