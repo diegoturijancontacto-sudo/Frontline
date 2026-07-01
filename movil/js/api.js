@@ -25,7 +25,7 @@ async function getSavedCatalogs() {
     }
 }
 
-// Guardar catálogo en el backend
+// Guardar o actualizar catálogo en el backend
 async function saveCatalogToLocal() {
     if (state.selectedIds.size === 0) {
         showToast('Selecciona al menos una obra antes de guardar el catálogo.', 'error');
@@ -47,18 +47,30 @@ async function saveCatalogToLocal() {
         cfgBiography: document.getElementById('cfgBiography')?.checked || false
     };
 
+    // DETERMINAR SI ES EDICIÓN O NUEVO
+    const isEditing = state.currentCatalogId !== null;
+    
+    // IMPORTANTE: Si estamos editando, usar el ID existente
+    const catalogId = isEditing ? state.currentCatalogId : 'cat_' + Date.now();
+    
     const catalogData = {
-        id: 'cat_' + Date.now(),
+        id: catalogId,
         title: name,
         selectedWorksCount: state.selectedIds.size,
         selectedIds: Array.from(state.selectedIds),
         config: config
     };
 
+    console.log('Guardando catálogo:', {
+        isEditing,
+        id: catalogId,
+        title: name,
+        selectedCount: state.selectedIds.size
+    });
+
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -68,9 +80,39 @@ async function saveCatalogToLocal() {
             })
         });
 
-        showToast(`Catálogo "${name}" guardado exitosamente en la nube.`, 'success');
+        // Intentar leer la respuesta
+        let result = null;
+        try {
+            result = await response.json();
+            console.log('Respuesta del servidor:', result);
+        } catch (e) {
+            console.warn('No se pudo leer la respuesta del servidor:', e);
+        }
+
+        // Si estamos editando y el título cambió, actualizar el título en la UI
+        if (isEditing && name !== state.currentCatalogTitle) {
+            state.currentCatalogTitle = name;
+            document.getElementById('pageTitle').textContent = name;
+        }
+
+        const mensaje = isEditing 
+            ? `Catálogo "${name}" actualizado exitosamente.` 
+            : `Catálogo "${name}" guardado exitosamente.`;
+        
+        showToast(mensaje, 'success');
         await loadLocalCatalogs();
         updateSidebarSummary();
+        
+        // Si es nuevo, establecer el ID actual para futuras ediciones
+        if (!isEditing) {
+            state.currentCatalogId = catalogId;
+            state.currentCatalogTitle = name;
+            updateSaveButtonText();
+        }
+        
+        // Actualizar la lista de catálogos guardados
+        await loadLocalCatalogs();
+        
     } catch (error) {
         console.error('Error al guardar:', error);
         showToast('Error al guardar el catálogo', 'error');
@@ -82,9 +124,8 @@ async function deleteCatalog(id) {
     if (!confirm('¿Estás seguro de eliminar este catálogo?')) return;
 
     try {
-        await fetch(API_URL, {
+        const response = await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -93,6 +134,14 @@ async function deleteCatalog(id) {
                 id: id
             })
         });
+
+        // Si el catálogo eliminado era el que estábamos editando, resetear el estado
+        if (state.currentCatalogId === id) {
+            state.currentCatalogId = null;
+            state.currentCatalogTitle = null;
+            document.getElementById('pageTitle').textContent = 'Resultados';
+            updateSaveButtonText();
+        }
 
         showToast('Catálogo eliminado exitosamente.', 'success');
         await loadLocalCatalogs();
@@ -118,6 +167,12 @@ async function loadSavedCatalog(id) {
             showToast('No se pudo encontrar el catálogo seleccionado.', 'error');
             return;
         }
+
+        console.log('Cargando catálogo:', catalog);
+
+        // GUARDAR EL ID DEL CATÁLOGO ACTUAL PARA EDICIÓN
+        state.currentCatalogId = catalog.id;
+        state.currentCatalogTitle = catalog.title;
 
         state.selectedIds = new Set(catalog.selectedIds || []);
 
@@ -146,6 +201,9 @@ async function loadSavedCatalog(id) {
         document.getElementById('searchContainer').classList.remove('hidden');
         document.getElementById('pageTitle').textContent = catalog.title || 'Resultados';
         document.getElementById('btnConfigCatalogo').classList.remove('hidden');
+        
+        // Actualizar el texto del botón de guardar
+        updateSaveButtonText();
         
         state.filteredObras = state.rawObras;
         sortData();
@@ -187,7 +245,6 @@ async function renameCatalog(id, newName) {
         // Guardamos con el nuevo nombre
         await fetch(API_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -196,6 +253,12 @@ async function renameCatalog(id, newName) {
                 ...catalog
             })
         });
+
+        // Si el catálogo renombrado es el que estamos editando, actualizar el título
+        if (state.currentCatalogId === id) {
+            state.currentCatalogTitle = trimmed;
+            document.getElementById('pageTitle').textContent = trimmed;
+        }
 
         showToast(`Catálogo renombrado a "${trimmed}".`, 'success');
         loadLocalCatalogs();
@@ -326,7 +389,6 @@ async function importCatalog() {
                 
                 await fetch(API_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
                     headers: {
                         'Content-Type': 'application/json',
                     },
