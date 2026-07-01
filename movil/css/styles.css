@@ -1002,7 +1002,7 @@ header {
 }
 
 /* ============================================
-   PDF VIEWER - MOBILE FIRST
+   PDF VIEWER - VERSIÓN MEJORADA
    ============================================ */
 
 .pdf-viewer-overlay {
@@ -1011,12 +1011,11 @@ header {
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(0, 0, 0, 0.85);
     z-index: 1000;
     display: none;
     align-items: center;
     justify-content: center;
-    padding: 8px;
     backdrop-filter: blur(4px);
 }
 
@@ -1026,52 +1025,37 @@ header {
 
 .pdf-viewer-container {
     background: white;
-    border-radius: 12px;
     width: 100%;
-    max-width: 1400px;
-    height: 98vh;
-    max-height: 98vh;
+    height: 100vh;
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    animation: slideUp 0.3s ease-out;
     position: relative;
 }
 
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(30px) scale(0.95);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
 /* ============================================
-   HEADER DEL VISOR (Mobile First)
+   HEADER DEL VISOR
    ============================================ */
 
 .pdf-viewer-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 12px;
+    padding: 8px 12px;
     border-bottom: 1px solid #e5e7eb;
     background: #f8fafc;
     flex-shrink: 0;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    min-height: 48px;
+    z-index: 10;
 }
 
 .pdf-viewer-title {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
+    gap: 6px;
+    font-size: 12px;
     font-weight: 600;
     color: #1e293b;
     min-width: 0;
@@ -1079,7 +1063,7 @@ header {
 }
 
     .pdf-viewer-title i {
-        font-size: 16px;
+        font-size: 14px;
         flex-shrink: 0;
     }
 
@@ -1096,9 +1080,9 @@ header {
 }
 
 .pdf-viewer-btn {
-    padding: 6px 10px;
+    padding: 4px 8px;
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
+    border-radius: 4px;
     background: white;
     color: #475569;
     cursor: pointer;
@@ -1106,7 +1090,8 @@ header {
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 12px;
+    font-size: 11px;
+    min-height: 32px;
 }
 
     .pdf-viewer-btn i {
@@ -1123,14 +1108,15 @@ header {
     }
 
 .pdf-viewer-btn-close {
-    padding: 6px 10px;
+    padding: 4px 10px;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     background: #ef4444;
     color: white;
     cursor: pointer;
     transition: all 0.2s;
-    font-size: 14px;
+    font-size: 16px;
+    min-height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1157,7 +1143,7 @@ header {
 
 .pdf-viewer-sidebar {
     width: 100%;
-    max-height: 180px;
+    max-height: 160px;
     border-bottom: 1px solid #e5e7eb;
     background: #f8fafc;
     display: flex;
@@ -1167,7 +1153,7 @@ header {
 }
 
 .pdf-sidebar-header {
-    padding: 8px 12px;
+    padding: 6px 12px;
     border-bottom: 1px solid #e5e7eb;
     display: flex;
     justify-content: space-between;
@@ -1177,32 +1163,32 @@ header {
 }
 
     .pdf-sidebar-header h3 {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         color: #1e293b;
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
     }
 
         .pdf-sidebar-header h3 i {
-            font-size: 14px;
+            font-size: 12px;
         }
 
 .pdf-catalog-list {
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 6px;
+    padding: 4px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 3px;
     -webkit-overflow-scrolling: touch;
 }
 
 .pdf-catalog-item {
-    padding: 8px 12px;
-    border-radius: 6px;
+    padding: 6px 10px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
     border: 2px solid transparent;
@@ -1210,18 +1196,13 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    min-height: 44px;
+    gap: 6px;
+    min-height: 36px;
     touch-action: manipulation;
 }
 
     .pdf-catalog-item:active {
-        transform: scale(0.98);
-    }
-
-    .pdf-catalog-item:hover {
-        background: #f1f5f9;
-        border-color: #e5e7eb;
+        transform: scale(0.97);
     }
 
     .pdf-catalog-item.active {
@@ -1242,7 +1223,7 @@ header {
     }
 
     .pdf-catalog-item .pdf-catalog-title {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 500;
         white-space: nowrap;
         overflow: hidden;
@@ -1250,15 +1231,15 @@ header {
     }
 
     .pdf-catalog-item .pdf-catalog-date {
-        font-size: 10px;
+        font-size: 9px;
         color: #94a3b8;
     }
 
     .pdf-catalog-item .pdf-catalog-count {
-        font-size: 10px;
+        font-size: 9px;
         background: #e5e7eb;
-        padding: 2px 8px;
-        border-radius: 12px;
+        padding: 1px 6px;
+        border-radius: 10px;
         white-space: nowrap;
         flex-shrink: 0;
     }
@@ -1287,16 +1268,17 @@ header {
     align-items: center;
     justify-content: center;
     background: #e5e7eb;
-    padding: 8px;
+    padding: 4px;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
 }
 
-    .pdf-viewer-frame iframe {
-        width: 100%;
-        height: 100%;
-        border: none;
-        border-radius: 6px;
-        background: white;
+    .pdf-viewer-frame canvas {
+        max-width: 100%;
+        height: auto !important;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+        background: white;
     }
 
 .pdf-placeholder {
@@ -1307,19 +1289,75 @@ header {
 
     .pdf-placeholder i {
         display: block;
-        font-size: 48px;
-        margin-bottom: 12px;
+        font-size: 40px;
+        margin-bottom: 10px;
     }
 
     .pdf-placeholder p {
-        font-size: 13px;
+        font-size: 12px;
     }
 
     .pdf-placeholder .text-sm {
-        font-size: 11px;
+        font-size: 10px;
     }
 
-/* Loading */
+/* ============================================
+   CONTROLES DE NAVEGACIÓN DEL PDF
+   ============================================ */
+
+.pdf-viewer-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 6px 12px;
+    background: #f8fafc;
+    border-top: 1px solid #e5e7eb;
+    flex-shrink: 0;
+    min-height: 40px;
+}
+
+.pdf-nav-btn {
+    padding: 6px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    background: white;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    min-width: 36px;
+    min-height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+    .pdf-nav-btn:active {
+        transform: scale(0.95);
+    }
+
+    .pdf-nav-btn:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+    }
+
+    .pdf-nav-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+.pdf-page-info {
+    font-size: 12px;
+    color: #475569;
+    min-width: 80px;
+    text-align: center;
+}
+
+/* ============================================
+   LOADING EN EL VISOR
+   ============================================ */
+
 .pdf-loading {
     display: flex;
     flex-direction: column;
@@ -1337,11 +1375,11 @@ header {
         border-top: 3px solid #1e293b;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
     }
 
     .pdf-loading p {
-        font-size: 13px;
+        font-size: 12px;
     }
 
 /* ============================================
@@ -1349,31 +1387,27 @@ header {
    ============================================ */
 
 @media (min-width: 640px) {
-    .pdf-viewer-overlay {
-        padding: 16px;
-    }
-
     .pdf-viewer-container {
+        width: 95%;
         height: 92vh;
         max-height: 92vh;
-        border-radius: 16px;
+        border-radius: 12px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
     }
 
     .pdf-viewer-header {
-        padding: 14px 20px;
+        padding: 10px 16px;
+        min-height: 52px;
     }
 
     .pdf-viewer-title {
-        font-size: 15px;
+        font-size: 14px;
     }
 
-        .pdf-viewer-title i {
-            font-size: 18px;
-        }
-
     .pdf-viewer-btn {
-        padding: 7px 14px;
-        font-size: 13px;
+        padding: 6px 12px;
+        font-size: 12px;
+        min-height: 36px;
     }
 
         .pdf-viewer-btn span {
@@ -1381,34 +1415,28 @@ header {
         }
 
     .pdf-viewer-btn-close {
-        padding: 7px 14px;
-        font-size: 16px;
+        padding: 6px 14px;
+        font-size: 18px;
+        min-height: 36px;
     }
 
-    .pdf-sidebar-header {
-        padding: 10px 16px;
+    .pdf-sidebar-header h3 {
+        font-size: 12px;
     }
-
-        .pdf-sidebar-header h3 {
-            font-size: 13px;
-        }
 
     .pdf-catalog-item {
-        padding: 10px 14px;
-        min-height: 48px;
+        padding: 8px 12px;
+        min-height: 40px;
     }
 
         .pdf-catalog-item .pdf-catalog-title {
-            font-size: 13px;
+            font-size: 12px;
         }
 
-    .pdf-viewer-frame {
-        padding: 12px;
+    .pdf-viewer-controls {
+        padding: 8px 16px;
+        min-height: 44px;
     }
-
-        .pdf-viewer-frame iframe {
-            border-radius: 8px;
-        }
 }
 
 /* ============================================
@@ -1429,7 +1457,7 @@ header {
     }
 
     .pdf-catalog-list {
-        max-height: calc(100% - 50px);
+        max-height: calc(100% - 44px);
     }
 
     .pdf-viewer-content {
@@ -1437,7 +1465,7 @@ header {
     }
 
     .pdf-viewer-frame {
-        padding: 16px;
+        padding: 12px;
     }
 
     .pdf-placeholder i {
@@ -1445,7 +1473,7 @@ header {
     }
 
     .pdf-placeholder p {
-        font-size: 15px;
+        font-size: 14px;
     }
 }
 
@@ -1454,32 +1482,23 @@ header {
    ============================================ */
 
 @media (max-width: 480px) {
-    .pdf-viewer-overlay {
-        padding: 0;
-    }
-
-    .pdf-viewer-container {
-        height: 100vh;
-        max-height: 100vh;
-        border-radius: 0;
-        animation: none;
-    }
-
     .pdf-viewer-header {
-        padding: 8px 10px;
+        padding: 4px 8px;
+        min-height: 40px;
     }
 
     .pdf-viewer-title {
-        font-size: 11px;
+        font-size: 10px;
     }
 
         .pdf-viewer-title i {
-            font-size: 14px;
+            font-size: 12px;
         }
 
     .pdf-viewer-btn {
-        padding: 5px 8px;
-        font-size: 11px;
+        padding: 3px 6px;
+        font-size: 10px;
+        min-height: 28px;
     }
 
         .pdf-viewer-btn i {
@@ -1487,75 +1506,78 @@ header {
         }
 
     .pdf-viewer-btn-close {
-        padding: 5px 8px;
-        font-size: 12px;
+        padding: 3px 8px;
+        font-size: 14px;
+        min-height: 28px;
     }
 
     .pdf-viewer-sidebar {
-        max-height: 140px;
+        max-height: 120px;
     }
 
     .pdf-sidebar-header {
-        padding: 6px 10px;
+        padding: 4px 8px;
     }
 
         .pdf-sidebar-header h3 {
-            font-size: 11px;
+            font-size: 10px;
         }
 
     .pdf-catalog-item {
-        padding: 6px 10px;
-        min-height: 36px;
+        padding: 4px 8px;
+        min-height: 30px;
     }
 
         .pdf-catalog-item .pdf-catalog-title {
-            font-size: 11px;
+            font-size: 10px;
         }
 
         .pdf-catalog-item .pdf-catalog-date {
-            font-size: 9px;
+            font-size: 8px;
         }
 
         .pdf-catalog-item .pdf-catalog-count {
-            font-size: 9px;
-            padding: 1px 6px;
+            font-size: 8px;
+            padding: 1px 4px;
         }
 
+    .pdf-viewer-controls {
+        padding: 4px 8px;
+        min-height: 32px;
+        gap: 8px;
+    }
+
+    .pdf-nav-btn {
+        padding: 4px 8px;
+        font-size: 12px;
+        min-width: 30px;
+        min-height: 30px;
+    }
+
+    .pdf-page-info {
+        font-size: 10px;
+        min-width: 60px;
+    }
+
     .pdf-viewer-frame {
-        padding: 4px;
+        padding: 2px;
+    }
+
+    .pdf-placeholder i {
+        font-size: 32px;
+    }
+
+    .pdf-placeholder p {
+        font-size: 11px;
     }
 }
 
-/* ============================================
-   BOTÓN FLOTANTE PARA MÓVIL (si se necesita)
-   ============================================ */
-
-.pdf-viewer-fab {
-    position: fixed;
-    bottom: 80px;
-    right: 16px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: #1e293b;
-    color: white;
-    border: none;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-    cursor: pointer;
-    font-size: 24px;
-    z-index: 100;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.3s;
-}
-
-    .pdf-viewer-fab:active {
-        transform: scale(0.9);
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
     }
 
-@media (max-width: 640px) {
-    .pdf-viewer-fab {
-        display: flex;
+    to {
+        transform: rotate(360deg);
     }
 }
