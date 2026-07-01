@@ -2,13 +2,17 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
     <title>RTBROK - Generador de Catálogos PDF</title>
 
     <!-- Tailwind & FontAwesome -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <!-- pdf.js para renderizar PDF en el visor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf_viewer.css">
 
     <!-- Estilos CSS -->
     <link rel="stylesheet" href="./css/styles.css">
@@ -398,7 +402,7 @@
         </footer>
 
         <!-- ========================================== -->
-        <!-- VISOR DE PDF (Overlay) -->
+        <!-- VISOR DE PDF - VERSIÓN MEJORADA PARA MÓVIL -->
         <!-- ========================================== -->
         <div id="pdfViewer" class="pdf-viewer-overlay hidden">
             <div class="pdf-viewer-container">
@@ -447,6 +451,17 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Controles de navegación del PDF (para móvil) -->
+                <div class="pdf-viewer-controls">
+                    <button onclick="pdfViewerPrevPage()" class="pdf-nav-btn" id="pdfPrevBtn" title="Página anterior">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span id="pdfPageInfo" class="pdf-page-info">Página 0 de 0</span>
+                    <button onclick="pdfViewerNextPage()" class="pdf-nav-btn" id="pdfNextBtn" title="Página siguiente">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -463,13 +478,13 @@
         </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts - El orden es importante -->
     <script src="./js/config.js"></script>
     <script src="./js/api.js"></script>
     <script src="./js/filters.js"></script>
     <script src="./js/catalogs.js"></script>
     <script src="./js/grid.js"></script>
-    <script src="./js/pdf.js"></script>
+    <script src="./js/pdf.js"></script>      <!-- pdf.js DEBE cargarse ANTES que pdfViewer.js -->
     <script src="./js/pdfViewer.js"></script>
     <script src="./js/app.js"></script>
 </body>
