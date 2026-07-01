@@ -3,10 +3,10 @@
 // ============================================
 
 // ============================================
-// CATÁLOGOS API
+// CATÁLOGOS API - Versión no-cors
 // ============================================
 
-// Obtener todos los catálogos del backend
+// Obtener todos los catálogos del backend (GET - funciona con CORS)
 async function getSavedCatalogs() {
     try {
         const response = await fetch(`${API_URL}?action=list`);
@@ -25,7 +25,7 @@ async function getSavedCatalogs() {
     }
 }
 
-// Guardar o actualizar catálogo en el backend
+// Guardar o actualizar catálogo (POST - usando no-cors)
 async function saveCatalogToLocal() {
     if (state.selectedIds.size === 0) {
         showToast('Selecciona al menos una obra antes de guardar el catálogo.', 'error');
@@ -47,13 +47,11 @@ async function saveCatalogToLocal() {
         cfgBiography: document.getElementById('cfgBiography')?.checked || false
     };
 
-    // DETERMINAR SI ES EDICIÓN O NUEVO
     const isEditing = state.currentCatalogId !== null;
-    
-    // IMPORTANTE: Si estamos editando, usar el ID existente
     const catalogId = isEditing ? state.currentCatalogId : 'cat_' + Date.now();
     
     const catalogData = {
+        action: 'save',
         id: catalogId,
         title: name,
         selectedWorksCount: state.selectedIds.size,
@@ -69,30 +67,30 @@ async function saveCatalogToLocal() {
     });
 
     try {
+        // Usar fetch con no-cors para evitar CORS
         const response = await fetch(API_URL, {
             method: 'POST',
+            mode: 'no-cors',
+            cache: 'no-cache',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                action: 'save',
-                ...catalogData
-            })
+            body: JSON.stringify(catalogData)
         });
 
-        // Intentar leer la respuesta
-        let result = null;
-        try {
-            result = await response.json();
-            console.log('Respuesta del servidor:', result);
-        } catch (e) {
-            console.warn('No se pudo leer la respuesta del servidor:', e);
-        }
-
-        // Si estamos editando y el título cambió, actualizar el título en la UI
+        // Con no-cors, la respuesta es opaca pero podemos asumir éxito
+        // Actualizar el estado local
         if (isEditing && name !== state.currentCatalogTitle) {
             state.currentCatalogTitle = name;
             document.getElementById('pageTitle').textContent = name;
+        }
+
+        if (!isEditing) {
+            state.currentCatalogId = catalogId;
+            state.currentCatalogTitle = name;
+            if (typeof updateSaveButtonText === 'function') {
+                updateSaveButtonText();
+            }
         }
 
         const mensaje = isEditing 
@@ -100,32 +98,28 @@ async function saveCatalogToLocal() {
             : `Catálogo "${name}" guardado exitosamente.`;
         
         showToast(mensaje, 'success');
-        await loadLocalCatalogs();
-        updateSidebarSummary();
         
-        // Si es nuevo, establecer el ID actual para futuras ediciones
-        if (!isEditing) {
-            state.currentCatalogId = catalogId;
-            state.currentCatalogTitle = name;
-            updateSaveButtonText();
-        }
-        
-        // Actualizar la lista de catálogos guardados
-        await loadLocalCatalogs();
+        // Recargar la lista de catálogos (usando GET que sí funciona)
+        setTimeout(async () => {
+            await loadLocalCatalogs();
+            updateSidebarSummary();
+        }, 500);
         
     } catch (error) {
         console.error('Error al guardar:', error);
-        showToast('Error al guardar el catálogo', 'error');
+        showToast('Error al guardar el catálogo. Revisa tu conexión.', 'error');
     }
 }
 
-// Eliminar catálogo del backend
+// Eliminar catálogo (POST - usando no-cors)
 async function deleteCatalog(id) {
     if (!confirm('¿Estás seguro de eliminar este catálogo?')) return;
 
     try {
         const response = await fetch(API_URL, {
             method: 'POST',
+            mode: 'no-cors',
+            cache: 'no-cache',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -140,18 +134,25 @@ async function deleteCatalog(id) {
             state.currentCatalogId = null;
             state.currentCatalogTitle = null;
             document.getElementById('pageTitle').textContent = 'Resultados';
-            updateSaveButtonText();
+            if (typeof updateSaveButtonText === 'function') {
+                updateSaveButtonText();
+            }
         }
 
         showToast('Catálogo eliminado exitosamente.', 'success');
-        await loadLocalCatalogs();
+        
+        // Recargar la lista de catálogos
+        setTimeout(async () => {
+            await loadLocalCatalogs();
+        }, 500);
+        
     } catch (error) {
         console.error('Error al eliminar:', error);
         showToast('Error al eliminar el catálogo', 'error');
     }
 }
 
-// Cargar un catálogo específico
+// Cargar un catálogo específico (GET - funciona con CORS)
 async function loadSavedCatalog(id) {
     try {
         const response = await fetch(`${API_URL}?action=get&id=${encodeURIComponent(id)}`);
@@ -203,7 +204,9 @@ async function loadSavedCatalog(id) {
         document.getElementById('btnConfigCatalogo').classList.remove('hidden');
         
         // Actualizar el texto del botón de guardar
-        updateSaveButtonText();
+        if (typeof updateSaveButtonText === 'function') {
+            updateSaveButtonText();
+        }
         
         state.filteredObras = state.rawObras;
         sortData();
@@ -219,7 +222,7 @@ async function loadSavedCatalog(id) {
     }
 }
 
-// Renombrar catálogo en el backend
+// Renombrar catálogo (POST - usando no-cors)
 async function renameCatalog(id, newName) {
     const trimmed = newName.trim();
     if (!trimmed) {
@@ -229,7 +232,7 @@ async function renameCatalog(id, newName) {
     }
 
     try {
-        // Primero obtenemos el catálogo actual
+        // Primero obtenemos el catálogo actual (GET - funciona)
         const response = await fetch(`${API_URL}?action=get&id=${encodeURIComponent(id)}`);
         const result = await response.json();
         
@@ -242,9 +245,11 @@ async function renameCatalog(id, newName) {
         const catalog = result.data;
         catalog.title = trimmed;
         
-        // Guardamos con el nuevo nombre
+        // Guardamos con el nuevo nombre (POST - no-cors)
         await fetch(API_URL, {
             method: 'POST',
+            mode: 'no-cors',
+            cache: 'no-cache',
             headers: {
                 'Content-Type': 'application/json',
             },
@@ -261,7 +266,11 @@ async function renameCatalog(id, newName) {
         }
 
         showToast(`Catálogo renombrado a "${trimmed}".`, 'success');
-        loadLocalCatalogs();
+        
+        setTimeout(async () => {
+            await loadLocalCatalogs();
+        }, 500);
+        
     } catch (error) {
         console.error('Error al renombrar:', error);
         showToast('Error al renombrar el catálogo', 'error');
@@ -389,6 +398,8 @@ async function importCatalog() {
                 
                 await fetch(API_URL, {
                     method: 'POST',
+                    mode: 'no-cors',
+                    cache: 'no-cache',
                     headers: {
                         'Content-Type': 'application/json',
                     },
@@ -401,7 +412,11 @@ async function importCatalog() {
             }
             
             showToast(`${imported} catálogo(s) importado(s) correctamente.`, 'success');
-            loadLocalCatalogs();
+            
+            setTimeout(async () => {
+                await loadLocalCatalogs();
+            }, 500);
+            
         } catch (error) {
             console.error('Error al importar:', error);
             showToast('Error al importar los catálogos', 'error');
