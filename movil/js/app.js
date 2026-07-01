@@ -64,6 +64,10 @@ function hideFooter() {
     }
 }
 
+// Exponerlas globalmente
+window.showFooter = showFooter;
+window.hideFooter = hideFooter;
+
 // ============================================
 // NAVEGACIÓN
 // ============================================
@@ -133,28 +137,42 @@ function closeAllSidebars() {
 // ============================================
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Cargar datos
-    await fetchSheetsDatabase();
-    await loadLocalCatalogs();
-    goHome();
-    
-    // Agregar listeners para los checkboxes del panel de configuración
-    const panelCheckboxes = ['cfgPricesPanel', 'cfgDimsPanel', 'cfgLocationPanel', 'cfgProveedorPanel', 'cfgFichaPanel'];
-    panelCheckboxes.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) {
-            el.addEventListener('change', function() {
-                const mainId = id.replace('Panel', '');
-                const mainEl = document.getElementById(mainId);
-                if (mainEl) {
-                    mainEl.checked = this.checked;
-                }
-            });
+    try {
+        // Cargar datos
+        await fetchSheetsDatabase();
+        await loadLocalCatalogs();
+        goHome();
+        
+        // Agregar listeners para los checkboxes del panel de configuración
+        const panelCheckboxes = ['cfgPricesPanel', 'cfgDimsPanel', 'cfgLocationPanel', 'cfgProveedorPanel', 'cfgFichaPanel'];
+        panelCheckboxes.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', function() {
+                    const mainId = id.replace('Panel', '');
+                    const mainEl = document.getElementById(mainId);
+                    if (mainEl) {
+                        mainEl.checked = this.checked;
+                    }
+                });
+            }
+        });
+        
+        // Ocultar el footer inicialmente (en la pantalla de inicio)
+        hideFooter();
+
+        // Cargar catálogos para el visor (solo si la función existe)
+        if (typeof loadCatalogsForViewer === 'function') {
+            await loadCatalogsForViewer();
+            console.log('Visor de PDF cargado correctamente');
+        } else {
+            console.warn('loadCatalogsForViewer no está disponible. Verifica que pdfViewer.js esté cargado.');
         }
-    });
-    
-    // Ocultar el footer inicialmente (en la pantalla de inicio)
-    hideFooter();
+        
+    } catch (error) {
+        console.error('Error en la inicialización:', error);
+        showToast('Error al inicializar la aplicación', 'error');
+    }
 });
 
 // ============================================
@@ -165,10 +183,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 document.addEventListener('click', function(e) {
     const configPanel = document.getElementById('configPanel');
     const localPanel = document.getElementById('localCatalogsPanel');
+    const viewerPanel = document.getElementById('pdfViewer');
     
+    // Cerrar config panel
     if (configPanel && !configPanel.classList.contains('hidden')) {
         if (!e.target.closest('.config-panel-content') && !e.target.closest('[onclick*="toggleConfigPanel"]')) {
             closeConfigPanel();
+        }
+    }
+    
+    // Cerrar panel de catálogos locales
+    if (localPanel && !localPanel.classList.contains('hidden')) {
+        if (!e.target.closest('.local-catalogs-panel') && !e.target.closest('[onclick*="toggleLocalCatalogsPanel"]')) {
+            localPanel.classList.add('hidden');
         }
     }
 });
@@ -183,6 +210,11 @@ document.addEventListener('keydown', function(e) {
         closeAllSidebars();
         if (document.getElementById('filterPanel').classList.contains('active')) {
             closeFilterPanel();
+        }
+        // Cerrar visor si está abierto
+        const viewer = document.getElementById('pdfViewer');
+        if (viewer && !viewer.classList.contains('hidden')) {
+            closePDFViewer();
         }
     }
     
@@ -199,6 +231,16 @@ document.addEventListener('keydown', function(e) {
     // Ctrl+S para guardar catálogo
     if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
-        saveCatalogToLocal();
+        if (typeof saveCatalogToLocal === 'function') {
+            saveCatalogToLocal();
+        }
+    }
+    
+    // Ctrl+V para abrir visor
+    if (e.ctrlKey && e.key === 'v') {
+        e.preventDefault();
+        if (typeof openPDFViewer === 'function') {
+            openPDFViewer();
+        }
     }
 });
