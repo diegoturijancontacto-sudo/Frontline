@@ -2,6 +2,10 @@
 // PDF.JS - Generación de PDF
 // ============================================
 
+// Inicializar jsPDF correctamente
+// La librería se carga desde CDN: https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
+// Esto crea window.jspdf con la clase jsPDF
+
 // Procesador de imágenes
 async function fetchImageAndConvertToBase64(url) {
     if (!url) return null;
@@ -129,7 +133,19 @@ async function generateCatalogPDF() {
 }
 
 async function buildAndSavePDF(artworks, cfg) {
-    const doc = new jsPDF('p', 'mm', 'a4');
+    // Verificar que jsPDF está disponible
+    if (typeof jsPDF === 'undefined' && typeof window.jspdf === 'undefined') {
+        throw new Error('La librería jsPDF no está cargada. Verifica la conexión a Internet.');
+    }
+    
+    // Obtener la clase jsPDF correctamente
+    const PDFLib = typeof jsPDF !== 'undefined' ? jsPDF : window.jspdf.jsPDF;
+    
+    if (!PDFLib) {
+        throw new Error('No se pudo cargar la librería jsPDF');
+    }
+    
+    const doc = new PDFLib('p', 'mm', 'a4');
     const pageWidth = 210;
     const pageHeight = 297;
 
@@ -144,7 +160,9 @@ async function buildAndSavePDF(artworks, cfg) {
                 reader.readAsDataURL(blob);
             });
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn('No se pudo cargar el logo:', e);
+    }
 
     // Portada
     const titleY = 120;
@@ -225,6 +243,7 @@ async function buildAndSavePDF(artworks, cfg) {
 
                     doc.addImage(art.image, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
                 } catch (err) {
+                    console.warn('Error al cargar imagen para PDF:', err);
                     doc.setFillColor(245, 247, 250);
                     doc.rect(x, y, imageMaxW, imageMaxH, 'F');
                     doc.setTextColor(150);
