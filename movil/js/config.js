@@ -8,8 +8,8 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbx1wIgADNvhYVbo9nNduz-j
 // URL de la base de datos de obras
 const DB_URL = 'https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec';
 
-// Logo path
-const LOGO_PATH = 'rtbrok_logo.png';
+// Logo path - RUTA RELATIVA CORREGIDA
+const LOGO_PATH = './rtbrok_logo.png';
 
 // Texto de disponibilidad
 const AVAILABILITY_TEXT = 'TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CONFIRMACIÓN';
@@ -39,3 +39,23 @@ const state = {
     currentPageLayout: 1,
     isLoading: false
 };
+
+// Referencia a jsPDF
+let jsPDFLib = null;
+
+function getJSPDF() {
+    if (jsPDFLib) return jsPDFLib;
+    
+    if (typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF) {
+        jsPDFLib = window.jspdf.jsPDF;
+        return jsPDFLib;
+    }
+    
+    if (typeof jsPDF !== 'undefined') {
+        jsPDFLib = jsPDF;
+        return jsPDFLib;
+    }
+    
+    console.error('jsPDF no está disponible. Verifica la carga de la librería.');
+    return null;
+}
