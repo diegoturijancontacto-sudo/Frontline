@@ -130,3 +130,16 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+// Actualizar el texto del botón de guardar según el estado de edición
+function updateSaveButtonText() {
+    const btnText = document.getElementById('saveButtonText');
+    const btnTextMobile = document.getElementById('saveButtonTextMobile');
+    if (state.currentCatalogId !== null) {
+        if (btnText) btnText.textContent = 'ACTUALIZAR CATÁLOGO';
+        if (btnTextMobile) btnTextMobile.textContent = 'ACTUALIZAR';
+    } else {
+        if (btnText) btnText.textContent = 'GUARDAR CATÁLOGO';
+        if (btnTextMobile) btnTextMobile.textContent = 'GUARDAR';
+    }
+}
