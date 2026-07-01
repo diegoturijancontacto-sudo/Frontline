@@ -31,7 +31,6 @@ function showToast(message, type = 'info') {
 // ============================================
 
 // Función para actualizar el texto del botón de guardar
-// Declarada en el ámbito global para que esté disponible en todos los archivos
 function updateSaveButtonText() {
     const btnText = document.getElementById('saveButtonText');
     const btnTextMobile = document.getElementById('saveButtonTextMobile');
@@ -48,6 +47,24 @@ function updateSaveButtonText() {
 window.updateSaveButtonText = updateSaveButtonText;
 
 // ============================================
+// CONTROL DEL FOOTER
+// ============================================
+
+function showFooter() {
+    const footer = document.getElementById('mainFooter');
+    if (footer) {
+        footer.style.display = 'flex';
+    }
+}
+
+function hideFooter() {
+    const footer = document.getElementById('mainFooter');
+    if (footer) {
+        footer.style.display = 'none';
+    }
+}
+
+// ============================================
 // NAVEGACIÓN
 // ============================================
 
@@ -60,6 +77,9 @@ function goHome() {
     document.getElementById('btnConfigCatalogo').classList.add('hidden');
     closeAllSidebars();
     document.getElementById('filterPanel').classList.remove('active');
+    
+    // OCULTAR EL FOOTER EN LA PANTALLA DE INICIO
+    hideFooter();
 }
 
 function openFilters() {
@@ -68,6 +88,9 @@ function openFilters() {
     document.getElementById('homeScreen').classList.add('hidden');
     document.getElementById('resultsPanel').classList.add('hidden');
     document.getElementById('pageTitle').textContent = 'Filtros';
+    
+    // MOSTRAR EL FOOTER EN FILTROS
+    showFooter();
 }
 
 function closeFilterPanel() {
@@ -80,6 +103,9 @@ function closeFilterPanel() {
         document.getElementById('pageTitle').textContent = title;
         document.getElementById('searchContainer').classList.remove('hidden');
         document.getElementById('btnConfigCatalogo').classList.remove('hidden');
+        
+        // MOSTRAR EL FOOTER EN RESULTADOS
+        showFooter();
     }
 }
 
@@ -126,6 +152,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
     });
+    
+    // Ocultar el footer inicialmente (en la pantalla de inicio)
+    hideFooter();
 });
 
 // ============================================
