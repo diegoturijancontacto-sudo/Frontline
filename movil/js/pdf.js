@@ -4,7 +4,6 @@
 
 // Inicializar jsPDF correctamente
 // La librería se carga desde CDN: https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
-// Esto crea window.jspdf con la clase jsPDF
 
 // Procesador de imágenes
 async function fetchImageAndConvertToBase64(url) {
@@ -26,7 +25,7 @@ async function fetchImageAndConvertToBase64(url) {
         return new Promise((resolve) => {
             const img = new Image();
             img.crossOrigin = 'Anonymous';
-            img.onload = function() {
+            img.onload = function () {
                 const canvas = document.createElement('canvas');
                 canvas.width = img.width;
                 canvas.height = img.height;
@@ -53,7 +52,169 @@ function convertGoogleDriveUrl(url) {
     return url;
 }
 
-// Generar PDF
+// Generar PDF como Blob (para el visor)
+async function generatePDFBlob(artworks, cfg) {
+    // Verificar que jsPDF está disponible
+    const PDFLib = getJSPDF();
+    if (!PDFLib) {
+        throw new Error('No se pudo cargar la librería jsPDF');
+    }
+
+    const doc = new PDFLib('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    let logoData = null;
+    try {
+        const res = await fetch(LOGO_PATH);
+        if (res.ok) {
+            const blob = await res.blob();
+            logoData = await new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = () => r(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+    } catch (e) {
+        console.warn('No se pudo cargar el logo:', e);
+    }
+
+    // Portada
+    const titleY = 120;
+    if (logoData) {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.05 }));
+        doc.addImage(logoData, 'PNG', (pageWidth - 85) / 2, titleY - 60, 85, 85);
+        doc.restoreGraphicsState();
+    }
+
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('times', 'normal');
+    doc.setFontSize(28);
+    doc.text(cfg.artistName.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.text(cfg.subtitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(cfg.updateText.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: 'center' });
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(110);
+    const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
+    doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: 'center' });
+
+    // Hojas de obras
+    const obrasPorHoja = Math.min(cfg.layout || 1, 4);
+
+    for (let i = 0; i < artworks.length; i += obrasPorHoja) {
+        doc.addPage();
+        const chunk = artworks.slice(i, i + obrasPorHoja);
+        const margin = 20;
+
+        const cols = obrasPorHoja === 1 ? 1 : (obrasPorHoja === 2 ? 2 : 2);
+        const rows = obrasPorHoja === 4 ? 2 : 1;
+
+        const usableWidth = pageWidth - margin * 2;
+        const usableHeight = pageHeight - margin * 2 - 30;
+
+        const itemWidth = (usableWidth - (cols - 1) * 15) / cols;
+        const itemHeight = Math.min((usableHeight - (rows - 1) * 15) / rows, 200);
+
+        const imageMaxW = itemWidth - 10;
+        const imageMaxH = itemHeight - 45;
+
+        for (let idx = 0; idx < chunk.length; idx++) {
+            const art = chunk[idx];
+            const col = idx % cols;
+            const row = Math.floor(idx / cols);
+
+            const x = margin + col * (itemWidth + 15);
+            const y = margin + row * (itemHeight + 15);
+
+            if (art.image && art.image.startsWith('data:')) {
+                try {
+                    const img = new Image();
+                    img.src = art.image;
+                    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+                    const imgRatio = img.width / img.height;
+                    const boxRatio = imageMaxW / imageMaxH;
+
+                    let renderW, renderH;
+                    if (imgRatio > boxRatio) {
+                        renderW = imageMaxW;
+                        renderH = imageMaxW / imgRatio;
+                    } else {
+                        renderH = imageMaxH;
+                        renderW = imageMaxH * imgRatio;
+                    }
+
+                    const offsetX = x + (imageMaxW - renderW) / 2;
+                    const offsetY = y + (imageMaxH - renderH) / 2;
+
+                    doc.addImage(art.image, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+                } catch (err) {
+                    doc.setFillColor(245, 247, 250);
+                    doc.rect(x, y, imageMaxW, imageMaxH, 'F');
+                    doc.setTextColor(150);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(8);
+                    doc.text('IMAGEN NO DISPONIBLE', x + imageMaxW / 2, y + imageMaxH / 2, { align: 'center' });
+                }
+            }
+
+            const infoY = y + imageMaxH + 3;
+
+            doc.setTextColor(20, 20, 20);
+            doc.setFont('times', 'bold');
+            doc.setFontSize(9);
+            const title = art.title.length > 35 ? art.title.substring(0, 32) + '...' : art.title;
+            doc.text(title, x + imageMaxW / 2, infoY + 4, { align: 'center' });
+
+            if (art.artist) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7);
+                doc.setTextColor(110);
+                const artist = art.artist.length > 30 ? art.artist.substring(0, 27) + '...' : art.artist;
+                doc.text(artist, x + imageMaxW / 2, infoY + 11, { align: 'center' });
+            }
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(6);
+            doc.setTextColor(90);
+            let info = [];
+            if (cfg.showFicha && art.medium) info.push(art.medium);
+            if (cfg.showDims && art.dimensions) info.push(art.dimensions);
+            if (cfg.showPrices && art.price) info.push(art.price);
+            if (cfg.showLocation && art.location) info.push(art.location);
+            if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
+            if (art.code) info.push(art.code);
+
+            const infoText = info.join(' | ').toUpperCase();
+            if (infoText) {
+                const splitInfo = doc.splitTextToSize(infoText, imageMaxW - 4);
+                const displayInfo = splitInfo.length > 2 ? splitInfo.slice(0, 2) : splitInfo;
+                displayInfo.forEach((line, li) => {
+                    doc.text(line, x + imageMaxW / 2, infoY + 16 + (li * 4), { align: 'center' });
+                });
+            }
+        }
+
+        const pageNum = Math.floor(i / obrasPorHoja) + 1;
+        const totalPages = Math.ceil(artworks.length / obrasPorHoja);
+        doc.setFontSize(6);
+        doc.setTextColor(170);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+    }
+
+    return doc.output('blob');
+}
+
+// Generar PDF completo (para descarga directa)
 async function generateCatalogPDF() {
     if (state.selectedIds.size === 0) {
         showToast('Selecciona al menos una obra de la grilla central para el PDF.', 'error');
@@ -121,7 +282,18 @@ async function generateCatalogPDF() {
             layout: state.currentPageLayout
         };
 
-        await buildAndSavePDF(processedArtworks, config);
+        // Generar el PDF como blob y descargar
+        const pdfBlob = await generatePDFBlob(processedArtworks, config);
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `CATALOGO_${config.artistName.replace(/\s+/g, '_')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast('PDF generado y descargado exitosamente.', 'success');
 
     } catch (err) {
         console.error('Fallo general creando PDF:', err);
@@ -132,173 +304,14 @@ async function generateCatalogPDF() {
     }
 }
 
-async function buildAndSavePDF(artworks, cfg) {
-    // Verificar que jsPDF está disponible
-    if (typeof jsPDF === 'undefined' && typeof window.jspdf === 'undefined') {
-        throw new Error('La librería jsPDF no está cargada. Verifica la conexión a Internet.');
-    }
-    
-    // Obtener la clase jsPDF correctamente
-    const PDFLib = typeof jsPDF !== 'undefined' ? jsPDF : window.jspdf.jsPDF;
-    
-    if (!PDFLib) {
-        throw new Error('No se pudo cargar la librería jsPDF');
-    }
-    
-    const doc = new PDFLib('p', 'mm', 'a4');
-    const pageWidth = 210;
-    const pageHeight = 297;
+// ============================================
+// EXPORTAR FUNCIONES GLOBALMENTE
+// ============================================
 
-    let logoData = null;
-    try {
-        const res = await fetch(LOGO_PATH);
-        if (res.ok) {
-            const blob = await res.blob();
-            logoData = await new Promise(r => {
-                const reader = new FileReader();
-                reader.onload = () => r(reader.result);
-                reader.readAsDataURL(blob);
-            });
-        }
-    } catch (e) {
-        console.warn('No se pudo cargar el logo:', e);
-    }
+// Exportar generatePDFBlob para que esté disponible en pdfViewer.js
+window.generatePDFBlob = generatePDFBlob;
 
-    // Portada
-    const titleY = 120;
-    if (logoData) {
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.05 }));
-        doc.addImage(logoData, 'PNG', (pageWidth - 85) / 2, titleY - 60, 85, 85);
-        doc.restoreGraphicsState();
-    }
-
-    doc.setTextColor(20, 20, 20);
-    doc.setFont('times', 'normal');
-    doc.setFontSize(28);
-    doc.text(cfg.artistName.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: 'center' });
-
-    doc.setFontSize(10);
-    doc.text(cfg.subtitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: 'center' });
-
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(cfg.updateText.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: 'center' });
-
-    doc.setFont('helvetica', 'italic');
-    doc.setFontSize(8);
-    doc.setTextColor(110);
-    const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
-    doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: 'center' });
-
-    // Hojas de obras
-    const obrasPorHoja = cfg.layout || 1;
-
-    for (let i = 0; i < artworks.length; i += obrasPorHoja) {
-        doc.addPage();
-        const chunk = artworks.slice(i, i + obrasPorHoja);
-        const margin = 20;
-        
-        const cols = obrasPorHoja === 1 ? 1 : (obrasPorHoja === 2 ? 2 : 2);
-        const rows = obrasPorHoja === 4 ? 2 : 1;
-        
-        const usableWidth = pageWidth - margin * 2;
-        const usableHeight = pageHeight - margin * 2 - 30;
-        
-        const itemWidth = (usableWidth - (cols - 1) * 15) / cols;
-        const itemHeight = Math.min((usableHeight - (rows - 1) * 15) / rows, 200);
-        
-        const imageMaxW = itemWidth - 10;
-        const imageMaxH = itemHeight - 45;
-
-        for (let idx = 0; idx < chunk.length; idx++) {
-            const art = chunk[idx];
-            const col = idx % cols;
-            const row = Math.floor(idx / cols);
-            
-            const x = margin + col * (itemWidth + 15);
-            const y = margin + row * (itemHeight + 15);
-
-            // Imagen
-            if (art.image && art.image.startsWith('data:')) {
-                try {
-                    const img = new Image();
-                    img.src = art.image;
-                    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
-
-                    const imgRatio = img.width / img.height;
-                    const boxRatio = imageMaxW / imageMaxH;
-
-                    let renderW, renderH;
-                    if (imgRatio > boxRatio) {
-                        renderW = imageMaxW;
-                        renderH = imageMaxW / imgRatio;
-                    } else {
-                        renderH = imageMaxH;
-                        renderW = imageMaxH * imgRatio;
-                    }
-
-                    const offsetX = x + (imageMaxW - renderW) / 2;
-                    const offsetY = y + (imageMaxH - renderH) / 2;
-
-                    doc.addImage(art.image, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
-                } catch (err) {
-                    console.warn('Error al cargar imagen para PDF:', err);
-                    doc.setFillColor(245, 247, 250);
-                    doc.rect(x, y, imageMaxW, imageMaxH, 'F');
-                    doc.setTextColor(150);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(8);
-                    doc.text('IMAGEN NO DISPONIBLE', x + imageMaxW/2, y + imageMaxH/2, { align: 'center' });
-                }
-            }
-
-            const infoY = y + imageMaxH + 3;
-            
-            // Título
-            doc.setTextColor(20, 20, 20);
-            doc.setFont('times', 'bold');
-            doc.setFontSize(9);
-            const title = art.title.length > 35 ? art.title.substring(0, 32) + '...' : art.title;
-            doc.text(title, x + imageMaxW/2, infoY + 4, { align: 'center' });
-
-            // Artista
-            if (art.artist) {
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(7);
-                doc.setTextColor(110);
-                const artist = art.artist.length > 30 ? art.artist.substring(0, 27) + '...' : art.artist;
-                doc.text(artist, x + imageMaxW/2, infoY + 11, { align: 'center' });
-            }
-
-            // Info
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(6);
-            doc.setTextColor(90);
-            let info = [];
-            if (cfg.showFicha && art.medium) info.push(art.medium);
-            if (cfg.showDims && art.dimensions) info.push(art.dimensions);
-            if (cfg.showPrices && art.price) info.push(art.price);
-            if (cfg.showLocation && art.location) info.push(art.location);
-            if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
-            if (art.code) info.push(art.code);
-
-            const infoText = info.join(' | ').toUpperCase();
-            const splitInfo = doc.splitTextToSize(infoText, imageMaxW - 4);
-            const displayInfo = splitInfo.length > 2 ? splitInfo.slice(0, 2) : splitInfo;
-            displayInfo.forEach((line, li) => {
-                doc.text(line, x + imageMaxW/2, infoY + 16 + (li * 4), { align: 'center' });
-            });
-        }
-
-        // Número de página
-        const pageNum = Math.floor(i / obrasPorHoja) + 1;
-        const totalPages = Math.ceil(artworks.length / obrasPorHoja);
-        doc.setFontSize(6);
-        doc.setTextColor(170);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
-    }
-
-    doc.save(`CATALOGO_${cfg.artistName.replace(/\s+/g, '_')}.pdf`);
-}
+// Exportar otras funciones que puedan ser necesarias
+window.fetchImageAndConvertToBase64 = fetchImageAndConvertToBase64;
+window.getFullLH3ImageUrl = getFullLH3ImageUrl;
+window.getJSPDF = getJSPDF;
