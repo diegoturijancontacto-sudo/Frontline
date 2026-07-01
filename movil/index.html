@@ -10,7 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
-    <!-- Estilos CSS - Ruta relativa corregida -->
+    <!-- Estilos CSS -->
     <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
@@ -34,10 +34,14 @@
 
             <!-- Controles -->
             <div class="flex items-center gap-3 sm:gap-6 text-sm">
+                <button onclick="openPDFViewer()" class="text-slate-600 hover:text-slate-900 px-2" title="Visor de PDF">
+                    <i class="fas fa-eye text-sm sm:text-base"></i>
+                </button>
+
                 <button id="btnConfigCatalogo" onclick="toggleConfigPanel()" class="text-slate-600 hover:text-slate-900 items-center gap-2 hidden sm:flex">
                     <i class="fas fa-cog"></i> Configurar
                 </button>
-                
+
                 <button onclick="toggleConfigPanel()" class="lg:hidden text-slate-600 hover:text-slate-900 px-2 text-lg relative">
                     <i class="fas fa-cog"></i>
                     <span id="mobileSelectedBadge" class="absolute -top-1 -right-1 bg-blue-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center hidden z-10">0</span>
@@ -56,12 +60,12 @@
 
         <!-- ÁREA DE TRABAJO -->
         <div class="workspace-area flex relative w-full">
-            
+
             <!-- PANTALLA DE INICIO -->
             <div id="homeScreen" class="home-screen fade-in">
                 <div class="logo">RTBROK</div>
                 <div class="subtitle">GESTOR DE CATÁLOGOS</div>
-                
+
                 <div class="w-full max-w-4xl">
                     <!-- Botón crear nuevo catálogo -->
                     <button onclick="createNewCatalog()" class="btn-create-catalog w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl text-lg font-bold transition-all shadow-lg hover:shadow-xl mb-6 flex items-center justify-center gap-3">
@@ -227,14 +231,14 @@
                             </button>
                         </div>
                     </div>
-                    
+
                     <!-- Barra de configuración rápida del PDF -->
                     <div class="pdf-config-bar">
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diseño:</span>
                         <button class="page-layout-btn active" data-layout="1" onclick="setPageLayout(1)">1 obra/pág</button>
                         <button class="page-layout-btn" data-layout="2" onclick="setPageLayout(2)">2 obras/pág</button>
                         <button class="page-layout-btn" data-layout="4" onclick="setPageLayout(4)">4 obras/pág</button>
-                        
+
                         <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">Mostrar:</span>
                         <div class="config-group">
                             <label><input type="checkbox" id="cfgPrices" checked onchange="syncConfigs()"> Precios</label>
@@ -243,13 +247,13 @@
                             <label><input type="checkbox" id="cfgProveedor" onchange="syncConfigs()"> Proveedor</label>
                             <label><input type="checkbox" id="cfgFicha" checked onchange="syncConfigs()"> Ficha técnica</label>
                         </div>
-                        
+
                         <div class="view-toggle">
                             <button id="btnGridView" onclick="setViewMode('grid')" class="active"><i class="fas fa-th-large"></i></button>
                             <button id="btnListView" onclick="setViewMode('list')"><i class="fas fa-list"></i></button>
                         </div>
                     </div>
-                    
+
                     <!-- Ordenar -->
                     <div class="flex items-center gap-2">
                         <span class="text-xs text-slate-500">Ordenar:</span>
@@ -266,7 +270,7 @@
                     <div id="gridContainer" class="grid-container">
                         <!-- Dinámico -->
                     </div>
-                    
+
                     <div id="emptyState" class="empty-state hidden">
                         <i id="emptyStateIcon" class="fas fa-filter text-5xl mb-3 opacity-20"></i>
                         <p id="emptyStateTitle" class="text-base font-medium text-slate-600">No se encontraron resultados</p>
@@ -372,10 +376,15 @@
             </div>
         </div>
 
-        <!-- FOOTER - Añadir ID para controlarlo -->
+        <!-- FOOTER -->
         <footer id="mainFooter" class="app-footer">
             <button onclick="generateCatalogPDF()" class="btn-pdf">
                 <i class="fas fa-file-pdf text-sm sm:text-base"></i> <span class="hidden sm:inline">GENERAR </span>PDF
+            </button>
+            <div class="footer-divider"></div>
+            <button onclick="openPDFViewer()" class="btn-footer">
+                <i class="fas fa-eye text-sm sm:text-base"></i> <span class="hidden sm:inline">VER CATÁLOGOS</span>
+                <span class="sm:hidden">VER</span>
             </button>
             <div class="footer-divider"></div>
             <button id="btnSaveCatalog" onclick="saveCatalogToLocal()" class="btn-footer">
@@ -387,6 +396,59 @@
                 <i class="fas fa-history text-sm sm:text-base"></i> HISTORIAL<span class="hidden sm:inline"> (GUARDADOS)</span>
             </button>
         </footer>
+
+        <!-- ========================================== -->
+        <!-- VISOR DE PDF (Overlay) -->
+        <!-- ========================================== -->
+        <div id="pdfViewer" class="pdf-viewer-overlay hidden">
+            <div class="pdf-viewer-container">
+                <!-- Header del visor -->
+                <div class="pdf-viewer-header">
+                    <div class="pdf-viewer-title">
+                        <i class="fas fa-file-pdf text-red-500"></i>
+                        <span id="pdfViewerTitle">Visor de Catálogos</span>
+                    </div>
+                    <div class="pdf-viewer-actions">
+                        <button onclick="downloadCurrentPDF()" class="pdf-viewer-btn" title="Descargar PDF">
+                            <i class="fas fa-download"></i>
+                            <span>Descargar</span>
+                        </button>
+                        <button onclick="printCurrentPDF()" class="pdf-viewer-btn" title="Imprimir">
+                            <i class="fas fa-print"></i>
+                            <span>Imprimir</span>
+                        </button>
+                        <button onclick="closePDFViewer()" class="pdf-viewer-btn-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenido del visor -->
+                <div class="pdf-viewer-body">
+                    <!-- Sidebar izquierdo: Lista de catálogos -->
+                    <div class="pdf-viewer-sidebar">
+                        <div class="pdf-sidebar-header">
+                            <h3><i class="fas fa-folder-open mr-2"></i>Mis Catálogos</h3>
+                            <span id="pdfCatalogCount" class="text-xs text-slate-400">0</span>
+                        </div>
+                        <div id="pdfCatalogList" class="pdf-catalog-list">
+                            <!-- Lista dinámica de catálogos -->
+                        </div>
+                    </div>
+
+                    <!-- Área del PDF -->
+                    <div class="pdf-viewer-content">
+                        <div id="pdfViewerFrame" class="pdf-viewer-frame">
+                            <div class="pdf-placeholder">
+                                <i class="fas fa-file-pdf text-6xl text-slate-300 mb-4"></i>
+                                <p class="text-slate-500">Selecciona un catálogo de la lista para visualizarlo</p>
+                                <p class="text-slate-400 text-sm mt-2">o genera uno nuevo desde la sección principal</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- LOADER -->
         <div id="loader" class="loader-overlay hidden">
@@ -401,13 +463,14 @@
         </div>
     </div>
 
-    <!-- Scripts - Rutas relativas corregidas -->
+    <!-- Scripts -->
     <script src="./js/config.js"></script>
     <script src="./js/api.js"></script>
     <script src="./js/filters.js"></script>
     <script src="./js/catalogs.js"></script>
     <script src="./js/grid.js"></script>
     <script src="./js/pdf.js"></script>
+    <script src="./js/pdfViewer.js"></script>
     <script src="./js/app.js"></script>
 </body>
 </html>
