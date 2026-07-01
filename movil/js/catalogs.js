@@ -30,12 +30,12 @@ async function createNewCatalog() {
     // Sincronizar paneles
     syncConfigs();
     updateSidebarSummary();
+    updateSaveButtonText();
     
     // Abrir filtros para seleccionar obras
     openFilters();
     showToast(`Nuevo catálogo "${trimmedName}" creado. Selecciona obras y guarda.`, 'success');
 }
-
 // Cargar lista de catálogos guardados
 async function loadLocalCatalogs() {
     const gridContainer = document.getElementById('catalogsGrid');
