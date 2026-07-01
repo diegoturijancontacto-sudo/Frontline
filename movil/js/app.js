@@ -1,145 +1,405 @@
 // ============================================
-// APP.JS - Inicialización y navegación
+// API.JS - Comunicación con el backend
 // ============================================
 
 // ============================================
-// TOAST
-// ============================================
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('customToast');
-    const msgSpan = document.getElementById('toastMessage');
-    const iconSpan = document.getElementById('toastIcon');
-
-    msgSpan.innerText = message;
-    if (type === 'success') {
-        iconSpan.innerHTML = '<i class="fas fa-check-circle text-emerald-400 text-sm"></i>';
-    } else if (type === 'error') {
-        iconSpan.innerHTML = '<i class="fas fa-exclamation-circle text-red-400 text-sm"></i>';
-    } else {
-        iconSpan.innerHTML = '<i class="fas fa-info-circle text-blue-400 text-sm"></i>';
-    }
-
-    toast.classList.add('show');
-    clearTimeout(window.toastTimeout);
-    window.toastTimeout = setTimeout(() => {
-        toast.classList.remove('show');
-    }, 4000);
-}
-
-// ============================================
-// NAVEGACIÓN
+// CATÁLOGOS API
 // ============================================
 
-function goHome() {
-    document.getElementById('homeScreen').classList.remove('hidden');
-    document.getElementById('homeScreen').style.display = 'flex';
-    document.getElementById('resultsPanel').classList.add('hidden');
-    document.getElementById('searchContainer').classList.add('hidden');
-    document.getElementById('pageTitle').textContent = 'Inicio';
-    document.getElementById('btnConfigCatalogo').classList.add('hidden');
-    closeAllSidebars();
-    document.getElementById('filterPanel').classList.remove('active');
-}
-
-function openFilters() {
-    document.getElementById('filterPanel').classList.add('active');
-    document.getElementById('homeScreen').style.display = 'none';
-    document.getElementById('homeScreen').classList.add('hidden');
-    document.getElementById('resultsPanel').classList.add('hidden');
-    document.getElementById('pageTitle').textContent = 'Filtros';
-}
-
-function closeFilterPanel() {
-    document.getElementById('filterPanel').classList.remove('active');
-    if (state.filteredObras.length === 0 && !state.hasAppliedInitialFilters) {
-        goHome();
-    } else {
-        document.getElementById('resultsPanel').classList.remove('hidden');
-        document.getElementById('pageTitle').textContent = 'Resultados';
-        document.getElementById('searchContainer').classList.remove('hidden');
-        document.getElementById('btnConfigCatalogo').classList.remove('hidden');
-    }
-}
-
-function applyFiltersAndClose() {
-    applyFilters();
-    closeFilterPanel();
-}
-
-function toggleConfigPanel() {
-    const panel = document.getElementById('configPanel');
-    panel.classList.toggle('hidden');
-}
-
-function closeConfigPanel() {
-    document.getElementById('configPanel').classList.add('hidden');
-}
-
-function closeAllSidebars() {
-    document.getElementById('configPanel').classList.add('hidden');
-    document.getElementById('localCatalogsPanel').classList.add('hidden');
-}
-
-// ============================================
-// INICIALIZACIÓN
-// ============================================
-
-document.addEventListener('DOMContentLoaded', async () => {
-    // Cargar datos
-    await fetchSheetsDatabase();
-    await loadLocalCatalogs();
-    goHome();
-});
-
-// ============================================
-// EVENTOS GLOBALES
-// ============================================
-
-// Cerrar paneles al hacer clic fuera
-document.addEventListener('click', function(e) {
-    const configPanel = document.getElementById('configPanel');
-    const localPanel = document.getElementById('localCatalogsPanel');
-    
-    if (configPanel && !configPanel.classList.contains('hidden')) {
-        if (!e.target.closest('.config-panel-content') && !e.target.closest('[onclick*="toggleConfigPanel"]')) {
-            closeConfigPanel();
-        }
-    }
-});
-
-// ============================================
-// KEYBOARD SHORTCUTS
-// ============================================
-
-document.addEventListener('keydown', function(e) {
-    // Escape para cerrar paneles
-    if (e.key === 'Escape') {
-        closeAllSidebars();
-        if (document.getElementById('filterPanel').classList.contains('active')) {
-            closeFilterPanel();
-        }
-    }
-    
-    // Ctrl+F para abrir filtros
-    if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault();
-        if (document.getElementById('filterPanel').classList.contains('active')) {
-            closeFilterPanel();
+// Obtener todos los catálogos del backend
+async function getSavedCatalogs() {
+    try {
+        const response = await fetch(`${API_URL}?action=list`);
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            return result.data || [];
         } else {
+            console.error('Error al obtener catálogos:', result.message);
+            return [];
+        }
+    } catch (error) {
+        console.error('Error de conexión:', error);
+        showToast('Error al conectar con el servidor', 'error');
+        return [];
+    }
+}
+
+// Guardar o actualizar catálogo en el backend (versión no-cors)
+async function saveCatalogToLocal() {
+    if (state.selectedIds.size === 0) {
+        showToast('Selecciona al menos una obra antes de guardar el catálogo.', 'error');
+        return;
+    }
+
+    const name = document.getElementById('pdfArtistName').value.trim() || 'Catálogo sin título';
+
+    const config = {
+        artistName: name,
+        subtitle: document.getElementById('pdfSubtitle').value.trim(),
+        updateText: document.getElementById('pdfUpdateText').value.trim(),
+        legalNote: document.getElementById('pdfLegalNote').value.trim(),
+        cfgPrices: document.getElementById('cfgPrices').checked,
+        cfgDims: document.getElementById('cfgDims').checked,
+        cfgLocation: document.getElementById('cfgLocation').checked,
+        cfgProveedor: document.getElementById('cfgProveedor').checked,
+        cfgFicha: document.getElementById('cfgFicha').checked,
+        cfgBiography: document.getElementById('cfgBiography')?.checked || false
+    };
+
+    // DETERMINAR SI ES EDICIÓN O NUEVO
+    const isEditing = state.currentCatalogId !== null;
+    
+    // IMPORTANTE: Si estamos editando, usar el ID existente
+    const catalogId = isEditing ? state.currentCatalogId : 'cat_' + Date.now();
+    
+    const catalogData = {
+        action: 'save',
+        id: catalogId,
+        title: name,
+        selectedWorksCount: state.selectedIds.size,
+        selectedIds: Array.from(state.selectedIds),
+        config: config
+    };
+
+    console.log('Guardando catálogo:', {
+        isEditing,
+        id: catalogId,
+        title: name,
+        selectedCount: state.selectedIds.size
+    });
+
+    try {
+        // Usar mode: 'no-cors' para evitar problemas de CORS
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(catalogData)
+        });
+
+        // Con no-cors no podemos leer la respuesta, asumimos éxito
+        // Actualizar el estado local
+        if (isEditing && name !== state.currentCatalogTitle) {
+            state.currentCatalogTitle = name;
+            document.getElementById('pageTitle').textContent = name;
+        }
+
+        // Si es nuevo, establecer el ID actual para futuras ediciones
+        if (!isEditing) {
+            state.currentCatalogId = catalogId;
+            state.currentCatalogTitle = name;
+            updateSaveButtonText();
+        }
+
+        const mensaje = isEditing 
+            ? `Catálogo "${name}" actualizado exitosamente.` 
+            : `Catálogo "${name}" guardado exitosamente.`;
+        
+        showToast(mensaje, 'success');
+        
+        // Recargar la lista de catálogos (usando GET que sí funciona)
+        await loadLocalCatalogs();
+        updateSidebarSummary();
+        
+    } catch (error) {
+        console.error('Error al guardar:', error);
+        showToast('Error al guardar el catálogo. Revisa tu conexión.', 'error');
+    }
+}
+
+// Eliminar catálogo del backend
+async function deleteCatalog(id) {
+    if (!confirm('¿Estás seguro de eliminar este catálogo?')) return;
+
+    try {
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'delete',
+                id: id
+            })
+        });
+
+        // Si el catálogo eliminado era el que estábamos editando, resetear el estado
+        if (state.currentCatalogId === id) {
+            state.currentCatalogId = null;
+            state.currentCatalogTitle = null;
+            document.getElementById('pageTitle').textContent = 'Resultados';
+            updateSaveButtonText();
+        }
+
+        showToast('Catálogo eliminado exitosamente.', 'success');
+        await loadLocalCatalogs();
+    } catch (error) {
+        console.error('Error al eliminar:', error);
+        showToast('Error al eliminar el catálogo', 'error');
+    }
+}
+
+// Cargar un catálogo específico
+async function loadSavedCatalog(id) {
+    try {
+        const response = await fetch(`${API_URL}?action=get&id=${encodeURIComponent(id)}`);
+        const result = await response.json();
+        
+        if (result.status === 'error') {
+            showToast(result.message, 'error');
+            return;
+        }
+
+        const catalog = result.data;
+        if (!catalog) {
+            showToast('No se pudo encontrar el catálogo seleccionado.', 'error');
+            return;
+        }
+
+        console.log('Cargando catálogo:', catalog);
+
+        // GUARDAR EL ID DEL CATÁLOGO ACTUAL PARA EDICIÓN
+        state.currentCatalogId = catalog.id;
+        state.currentCatalogTitle = catalog.title;
+
+        state.selectedIds = new Set(catalog.selectedIds || []);
+
+        if (catalog.config) {
+            document.getElementById('pdfArtistName').value = catalog.config.artistName || '';
+            document.getElementById('pdfSubtitle').value = catalog.config.subtitle || '';
+            document.getElementById('pdfUpdateText').value = catalog.config.updateText || '';
+            document.getElementById('pdfLegalNote').value = catalog.config.legalNote || '';
+            
+            document.getElementById('cfgPrices').checked = catalog.config.cfgPrices !== undefined ? catalog.config.cfgPrices : true;
+            document.getElementById('cfgDims').checked = catalog.config.cfgDims !== undefined ? catalog.config.cfgDims : true;
+            document.getElementById('cfgLocation').checked = catalog.config.cfgLocation !== undefined ? catalog.config.cfgLocation : true;
+            document.getElementById('cfgProveedor').checked = catalog.config.cfgProveedor || false;
+            document.getElementById('cfgFicha').checked = catalog.config.cfgFicha !== undefined ? catalog.config.cfgFicha : true;
+            
+            syncConfigs();
+        }
+
+        updateSidebarSummary();
+        state.hasAppliedInitialFilters = true;
+        
+        // Mostrar resultados
+        document.getElementById('homeScreen').style.display = 'none';
+        document.getElementById('homeScreen').classList.add('hidden');
+        document.getElementById('resultsPanel').classList.remove('hidden');
+        document.getElementById('searchContainer').classList.remove('hidden');
+        document.getElementById('pageTitle').textContent = catalog.title || 'Resultados';
+        document.getElementById('btnConfigCatalogo').classList.remove('hidden');
+        
+        // Actualizar el texto del botón de guardar
+        updateSaveButtonText();
+        
+        state.filteredObras = state.rawObras;
+        sortData();
+        showToast(`Catálogo "${catalog.title}" cargado correctamente.`, 'success');
+        
+        // Abrir filtros si no hay obras seleccionadas
+        if (state.selectedIds.size === 0) {
             openFilters();
         }
+    } catch (error) {
+        console.error('Error al cargar catálogo:', error);
+        showToast('Error al cargar el catálogo', 'error');
     }
-});
+}
 
-// Actualizar el texto del botón de guardar según el estado de edición
-function updateSaveButtonText() {
-    const btnText = document.getElementById('saveButtonText');
-    const btnTextMobile = document.getElementById('saveButtonTextMobile');
-    if (state.currentCatalogId !== null) {
-        if (btnText) btnText.textContent = 'ACTUALIZAR CATÁLOGO';
-        if (btnTextMobile) btnTextMobile.textContent = 'ACTUALIZAR';
-    } else {
-        if (btnText) btnText.textContent = 'GUARDAR CATÁLOGO';
-        if (btnTextMobile) btnTextMobile.textContent = 'GUARDAR';
+// Renombrar catálogo en el backend
+async function renameCatalog(id, newName) {
+    const trimmed = newName.trim();
+    if (!trimmed) {
+        showToast('El nombre no puede estar vacío.', 'error');
+        loadLocalCatalogs();
+        return;
     }
+
+    try {
+        // Primero obtenemos el catálogo actual
+        const response = await fetch(`${API_URL}?action=get&id=${encodeURIComponent(id)}`);
+        const result = await response.json();
+        
+        if (result.status === 'error') {
+            showToast(result.message, 'error');
+            loadLocalCatalogs();
+            return;
+        }
+
+        const catalog = result.data;
+        catalog.title = trimmed;
+        
+        // Guardamos con el nuevo nombre usando no-cors
+        await fetch(API_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'save',
+                ...catalog
+            })
+        });
+
+        // Si el catálogo renombrado es el que estamos editando, actualizar el título
+        if (state.currentCatalogId === id) {
+            state.currentCatalogTitle = trimmed;
+            document.getElementById('pageTitle').textContent = trimmed;
+        }
+
+        showToast(`Catálogo renombrado a "${trimmed}".`, 'success');
+        loadLocalCatalogs();
+    } catch (error) {
+        console.error('Error al renombrar:', error);
+        showToast('Error al renombrar el catálogo', 'error');
+        loadLocalCatalogs();
+    }
+}
+
+// Sincronizar catálogos
+async function syncCatalogs() {
+    showToast('Sincronizando catálogos...', 'info');
+    await loadLocalCatalogs();
+    showToast('Catálogos sincronizados correctamente.', 'success');
+}
+
+// ============================================
+// OBRAS API
+// ============================================
+
+// Cargar obras desde la base de datos
+async function fetchSheetsDatabase() {
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loaderText');
+    loaderText.innerText = 'Cargando base de datos de RTBROK...';
+    loader.classList.remove('hidden');
+    state.isLoading = true;
+
+    try {
+        const response = await fetch(DB_URL);
+        const data = await response.json();
+        
+        if (data.registrosObra && Array.isArray(data.registrosObra)) {
+            state.rawObras = data.registrosObra.map((obra, idx) => ({
+                ...obra,
+                id: obra.id || `obra_fallback_${idx}_${Date.now()}`
+            }));
+            state.rawComisiones = data.comisiones || [];
+            
+            state.filteredObras = [];
+            buildDynamicFilters();
+            renderGrid(state.filteredObras);
+        } else {
+            throw new Error('No se pudo obtener la lista de obras.');
+        }
+    } catch (err) {
+        console.error('Error al cargar la DB:', err);
+        showToast('Ocurrió un problema al sincronizar la base de datos.', 'error');
+    } finally {
+        loader.classList.add('hidden');
+        state.isLoading = false;
+    }
+}
+
+// ============================================
+// UTILIDADES DE IMAGEN
+// ============================================
+
+function getLH3ImageUrl(adjuntosArray) {
+    if (!adjuntosArray || adjuntosArray.length === 0) return null;
+    const adjunto = adjuntosArray[0];
+    const url = typeof adjunto === 'string' ? adjunto : (adjunto.url || '');
+    if (!url) return null;
+
+    const fileIdMatch = url.match(/[-\w]{25,}/);
+    if (fileIdMatch) {
+        return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}=s400`;
+    }
+    return url;
+}
+
+function getFullLH3ImageUrl(adjuntosArray) {
+    if (!adjuntosArray || adjuntosArray.length === 0) return null;
+    const adjunto = adjuntosArray[0];
+    const url = typeof adjunto === 'string' ? adjunto : (adjunto.url || '');
+    if (!url) return null;
+
+    const fileIdMatch = url.match(/[-\w]{25,}/);
+    if (fileIdMatch) {
+        return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`;
+    }
+    return url;
+}
+
+// ============================================
+// EXPORTAR E IMPORTAR CATÁLOGOS
+// ============================================
+
+async function exportAllCatalogs() {
+    try {
+        const catalogs = await getSavedCatalogs();
+        const dataStr = JSON.stringify(catalogs, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `catalogos_rtbrok_backup_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        showToast('Catálogos exportados correctamente.', 'success');
+    } catch (error) {
+        console.error('Error al exportar:', error);
+        showToast('Error al exportar los catálogos', 'error');
+    }
+}
+
+async function importCatalog() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = async (e) => {
+        try {
+            const file = e.target.files[0];
+            const text = await file.text();
+            const catalogs = JSON.parse(text);
+            
+            if (!Array.isArray(catalogs)) {
+                showToast('El archivo no contiene una lista válida de catálogos.', 'error');
+                return;
+            }
+
+            let imported = 0;
+            for (const catalog of catalogs) {
+                if (!catalog.id) {
+                    catalog.id = 'cat_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+                }
+                
+                await fetch(API_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'save',
+                        ...catalog
+                    })
+                });
+                imported++;
+            }
+            
+            showToast(`${imported} catálogo(s) importado(s) correctamente.`, 'success');
+            loadLocalCatalogs();
+        } catch (error) {
+            console.error('Error al importar:', error);
+            showToast('Error al importar los catálogos', 'error');
+        }
+    };
+    input.click();
 }
