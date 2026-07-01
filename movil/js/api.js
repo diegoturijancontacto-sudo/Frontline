@@ -207,6 +207,10 @@ async function loadSavedCatalog(id) {
         if (typeof updateSaveButtonText === 'function') {
             updateSaveButtonText();
         }
+
+        if (typeof showFooter === 'function') {
+            showFooter();
+        }
         
         state.filteredObras = state.rawObras;
         sortData();
