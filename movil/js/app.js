@@ -27,6 +27,27 @@ function showToast(message, type = 'info') {
 }
 
 // ============================================
+// FUNCIONES GLOBALES
+// ============================================
+
+// Función para actualizar el texto del botón de guardar
+// Declarada en el ámbito global para que esté disponible en todos los archivos
+function updateSaveButtonText() {
+    const btnText = document.getElementById('saveButtonText');
+    const btnTextMobile = document.getElementById('saveButtonTextMobile');
+    if (state.currentCatalogId !== null) {
+        if (btnText) btnText.textContent = 'ACTUALIZAR CATÁLOGO';
+        if (btnTextMobile) btnTextMobile.textContent = 'ACTUALIZAR';
+    } else {
+        if (btnText) btnText.textContent = 'GUARDAR CATÁLOGO';
+        if (btnTextMobile) btnTextMobile.textContent = 'GUARDAR';
+    }
+}
+
+// Exponer la función globalmente
+window.updateSaveButtonText = updateSaveButtonText;
+
+// ============================================
 // NAVEGACIÓN
 // ============================================
 
@@ -79,21 +100,6 @@ function closeConfigPanel() {
 function closeAllSidebars() {
     document.getElementById('configPanel').classList.add('hidden');
     document.getElementById('localCatalogsPanel').classList.add('hidden');
-}
-
-// ============================================
-// ACTUALIZAR TEXTO DEL BOTÓN DE GUARDAR
-// ============================================
-function updateSaveButtonText() {
-    const btnText = document.getElementById('saveButtonText');
-    const btnTextMobile = document.getElementById('saveButtonTextMobile');
-    if (state.currentCatalogId !== null) {
-        if (btnText) btnText.textContent = 'ACTUALIZAR CATÁLOGO';
-        if (btnTextMobile) btnTextMobile.textContent = 'ACTUALIZAR';
-    } else {
-        if (btnText) btnText.textContent = 'GUARDAR CATÁLOGO';
-        if (btnTextMobile) btnTextMobile.textContent = 'GUARDAR';
-    }
 }
 
 // ============================================
