@@ -81,7 +81,7 @@ function goHome() {
     document.getElementById('btnConfigCatalogo').classList.add('hidden');
     closeAllSidebars();
     document.getElementById('filterPanel').classList.remove('active');
-    
+
     // OCULTAR EL FOOTER EN LA PANTALLA DE INICIO
     hideFooter();
 }
@@ -92,7 +92,7 @@ function openFilters() {
     document.getElementById('homeScreen').classList.add('hidden');
     document.getElementById('resultsPanel').classList.add('hidden');
     document.getElementById('pageTitle').textContent = 'Filtros';
-    
+
     // MOSTRAR EL FOOTER EN FILTROS
     showFooter();
 }
@@ -107,7 +107,7 @@ function closeFilterPanel() {
         document.getElementById('pageTitle').textContent = title;
         document.getElementById('searchContainer').classList.remove('hidden');
         document.getElementById('btnConfigCatalogo').classList.remove('hidden');
-        
+
         // MOSTRAR EL FOOTER EN RESULTADOS
         showFooter();
     }
@@ -142,13 +142,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         await fetchSheetsDatabase();
         await loadLocalCatalogs();
         goHome();
-        
+
         // Agregar listeners para los checkboxes del panel de configuración
         const panelCheckboxes = ['cfgPricesPanel', 'cfgDimsPanel', 'cfgLocationPanel', 'cfgProveedorPanel', 'cfgFichaPanel'];
         panelCheckboxes.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
-                el.addEventListener('change', function() {
+                el.addEventListener('change', function () {
                     const mainId = id.replace('Panel', '');
                     const mainEl = document.getElementById(mainId);
                     if (mainEl) {
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
             }
         });
-        
+
         // Ocultar el footer inicialmente (en la pantalla de inicio)
         hideFooter();
 
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             console.warn('loadCatalogsForViewer no está disponible. Verifica que pdfViewer.js esté cargado.');
         }
-        
+
     } catch (error) {
         console.error('Error en la inicialización:', error);
         showToast('Error al inicializar la aplicación', 'error');
@@ -180,18 +180,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ============================================
 
 // Cerrar paneles al hacer clic fuera
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     const configPanel = document.getElementById('configPanel');
     const localPanel = document.getElementById('localCatalogsPanel');
     const viewerPanel = document.getElementById('pdfViewer');
-    
+
     // Cerrar config panel
     if (configPanel && !configPanel.classList.contains('hidden')) {
         if (!e.target.closest('.config-panel-content') && !e.target.closest('[onclick*="toggleConfigPanel"]')) {
             closeConfigPanel();
         }
     }
-    
+
     // Cerrar panel de catálogos locales
     if (localPanel && !localPanel.classList.contains('hidden')) {
         if (!e.target.closest('.local-catalogs-panel') && !e.target.closest('[onclick*="toggleLocalCatalogsPanel"]')) {
@@ -204,7 +204,7 @@ document.addEventListener('click', function(e) {
 // KEYBOARD SHORTCUTS
 // ============================================
 
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
     // Escape para cerrar paneles
     if (e.key === 'Escape') {
         closeAllSidebars();
@@ -217,7 +217,7 @@ document.addEventListener('keydown', function(e) {
             closePDFViewer();
         }
     }
-    
+
     // Ctrl+F para abrir filtros
     if (e.ctrlKey && e.key === 'f') {
         e.preventDefault();
@@ -227,7 +227,7 @@ document.addEventListener('keydown', function(e) {
             openFilters();
         }
     }
-    
+
     // Ctrl+S para guardar catálogo
     if (e.ctrlKey && e.key === 's') {
         e.preventDefault();
@@ -235,7 +235,7 @@ document.addEventListener('keydown', function(e) {
             saveCatalogToLocal();
         }
     }
-    
+
     // Ctrl+V para abrir visor
     if (e.ctrlKey && e.key === 'v') {
         e.preventDefault();
