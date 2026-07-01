@@ -8,7 +8,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbx1wIgADNvhYVbo9nNduz-j
 // URL de la base de datos de obras
 const DB_URL = 'https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec';
 
-// Logo path - RUTA RELATIVA CORREGIDA
+// Logo path
 const LOGO_PATH = './rtbrok_logo.png';
 
 // Texto de disponibilidad
@@ -37,7 +37,11 @@ const state = {
     hasAppliedInitialFilters: false,
     currentViewMode: 'grid',
     currentPageLayout: 1,
-    isLoading: false
+    isLoading: false,
+    // NUEVO: ID del catálogo actual que está siendo editado
+    currentCatalogId: null,
+    // NUEVO: Título original del catálogo (para saber si cambió)
+    currentCatalogTitle: null
 };
 
 // Referencia a jsPDF
