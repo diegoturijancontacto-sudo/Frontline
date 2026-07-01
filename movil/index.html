@@ -10,205 +10,41 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
-
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Roboto', sans-serif;
-            background-color: #f8fafc;
-            overflow: hidden;
-            height: 100vh;
-            height: 100dvh; /* Para dispositivos móviles modernos */
-            padding-bottom: env(safe-area-inset-bottom);
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-        }
-
-        /* Toggle Switches */
-        .toggle-switch:checked {
-            right: 0;
-            border-color: #1e293b;
-        }
-        .toggle-switch:checked + .toggle-bg {
-            background-color: #1e293b;
-        }
-
-        /* Custom image checkbox */
-        .img-checkbox {
-            appearance: none;
-            background-color: rgba(255, 255, 255, 0.9);
-            margin: 0;
-            width: 1.5em;
-            height: 1.5em;
-            border: 1px solid #cbd5e1;
-            border-radius: 0.25em;
-            display: grid;
-            place-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        .img-checkbox::before {
-            content: "";
-            width: 0.8em;
-            height: 0.8em;
-            transform: scale(0);
-            transition: 120ms transform ease-in-out;
-            box-shadow: inset 1em 1em #ffffff;
-            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-        }
-        .img-checkbox:checked {
-            background-color: #1e293b;
-            border-color: #1e293b;
-        }
-        .img-checkbox:checked::before {
-            transform: scale(1);
-        }
-
-        /* PDF Fonts representation in canvas */
-        .font-serif-pdf { font-family: 'Times New Roman', Times, serif; }
-        .font-sans-pdf { font-family: Arial, Helvetica, sans-serif; }
-
-        /* Custom alerts overlay */
-        .loading-overlay {
-            background-color: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(4px);
-        }
-        
-        /* Slider Styling */
-        input[type=range] {
-            -webkit-appearance: none;
-            width: 100%;
-            background: transparent;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            height: 16px;
-            width: 16px;
-            border-radius: 50%;
-            background: #1e293b;
-            cursor: pointer;
-            margin-top: -6px;
-        }
-        input[type=range]::-webkit-slider-runnable-track {
-            width: 100%;
-            height: 4px;
-            cursor: pointer;
-            background: #cbd5e1;
-            border-radius: 2px;
-        }
-
-        /* Ajuste para el footer en móviles */
-        .app-container {
-            height: 100vh;
-            height: 100dvh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* Footer con safe area */
-        .app-footer {
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-bottom: max(env(safe-area-inset-bottom), 8px);
-            flex-shrink: 0;
-            min-height: 64px;
-            height: auto;
-        }
-
-        /* El área de trabajo ocupa todo el espacio restante */
-        .workspace-area {
-            flex: 1;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Ajuste para el contenido scrolleable */
-        .scrollable-content {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        /* Ajuste para el grid container */
-        .grid-wrapper {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 16px;
-        }
-
-        @media (min-width: 640px) {
-            .grid-wrapper {
-                padding: 32px;
-            }
-        }
-
-        /* Ajuste para el panel de resultados */
-        .results-header {
-            flex-shrink: 0;
-        }
-
-        /* Ajuste para el main content */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            min-height: 0;
-        }
-    </style>
+    <!-- Estilos CSS -->
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- BARRA SUPERIOR (HEADER) -->
+    <div class="app-container" id="app">
+        <!-- HEADER -->
         <header class="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-3 sm:px-6 shrink-0 z-20 gap-2">
             <div class="flex items-center gap-2 sm:gap-6">
-                <!-- Botón Filtros (Sólo Móvil) -->
-                <button onclick="toggleFilters()" class="lg:hidden text-slate-600 hover:text-slate-900 px-2 text-lg">
-                    <i class="fas fa-filter"></i>
-                </button>
-
                 <div class="flex flex-col leading-tight">
                     <span class="text-lg sm:text-xl font-serif font-bold tracking-widest text-slate-900">RTBROK</span>
                     <span class="hidden sm:inline-block text-[8px] tracking-[0.2em] text-slate-500 uppercase">Arte | Subastas | Asesoría</span>
                 </div>
                 <div class="hidden sm:block h-6 w-px bg-gray-300 mx-2"></div>
-                <h1 class="hidden md:block text-base font-medium text-slate-700 truncate">Generador de Catálogos PDF</h1>
+                <h1 id="pageTitle" class="hidden md:block text-base font-medium text-slate-700 truncate">Inicio</h1>
             </div>
 
-            <!-- Barra de búsqueda central -->
-            <div class="flex-1 max-w-2xl mx-2 sm:mx-8 relative">
+            <!-- Barra de búsqueda -->
+            <div id="searchContainer" class="flex-1 max-w-2xl mx-2 sm:mx-8 relative hidden">
                 <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
                 <input type="text" id="globalSearch" placeholder="Buscar por título, técnica, palabra clave..." class="w-full bg-gray-50 border border-gray-200 rounded-md py-2 pl-9 pr-2 sm:pl-10 sm:pr-4 text-sm focus:outline-none focus:ring-1 focus:ring-slate-400 focus:bg-white transition-colors">
             </div>
 
-            <!-- Controles / Ayuda -->
+            <!-- Controles -->
             <div class="flex items-center gap-3 sm:gap-6 text-sm">
-                <button class="hidden sm:flex text-slate-600 hover:text-slate-900 items-center gap-2"><i class="far fa-question-circle"></i> Ayuda</button>
+                <button id="btnConfigCatalogo" onclick="toggleConfigPanel()" class="text-slate-600 hover:text-slate-900 items-center gap-2 hidden sm:flex">
+                    <i class="fas fa-cog"></i> Configurar
+                </button>
                 
-                <!-- Botón Configuración PDF (Sólo Móvil) -->
-                <button onclick="toggleConfig()" class="lg:hidden text-slate-600 hover:text-slate-900 px-2 text-lg relative">
+                <button onclick="toggleConfigPanel()" class="lg:hidden text-slate-600 hover:text-slate-900 px-2 text-lg relative">
                     <i class="fas fa-cog"></i>
                     <span id="mobileSelectedBadge" class="absolute -top-1 -right-1 bg-blue-500 text-white text-[9px] rounded-full w-4 h-4 flex items-center justify-center hidden z-10">0</span>
+                </button>
+
+                <button onclick="syncCatalogs()" class="text-slate-600 hover:text-slate-900 px-2" title="Sincronizar">
+                    <i class="fas fa-sync text-sm sm:text-base"></i>
                 </button>
 
                 <button class="hidden sm:block text-slate-600 hover:text-slate-900 relative">
@@ -221,39 +57,69 @@
         <!-- ÁREA DE TRABAJO -->
         <div class="workspace-area flex relative w-full">
             
-            <!-- OVERLAY MÓVIL (Oscurece el fondo al abrir menús) -->
-            <div id="mobileOverlay" onclick="closeAllSidebars()" class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"></div>
+            <!-- PANTALLA DE INICIO -->
+            <div id="homeScreen" class="home-screen fade-in">
+                <div class="logo">RTBROK</div>
+                <div class="subtitle">GESTOR DE CATÁLOGOS</div>
+                
+                <div class="w-full max-w-4xl">
+                    <!-- Botón crear nuevo catálogo -->
+                    <button onclick="createNewCatalog()" class="btn-create-catalog w-full bg-slate-900 hover:bg-slate-800 text-white py-4 rounded-xl text-lg font-bold transition-all shadow-lg hover:shadow-xl mb-6 flex items-center justify-center gap-3">
+                        <i class="fas fa-plus-circle text-2xl"></i>
+                        CREAR NUEVO CATÁLOGO
+                    </button>
 
-            <!-- SIDEBAR DE FILTROS (IZQUIERDO) -->
-            <aside id="leftSidebar" class="absolute lg:relative left-0 top-0 w-72 h-full bg-white border-r border-gray-200 flex flex-col shrink-0 z-40 transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
-                <div class="p-4 border-b border-gray-200 flex justify-between items-center bg-white sticky top-0 z-10">
-                    <h2 class="font-bold text-xs text-slate-800 uppercase tracking-wide">Filtros</h2>
-                    <div class="flex items-center gap-3">
-                        <button onclick="clearFilters()" class="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1">
-                            Limpiar <i class="fas fa-sync-alt"></i>
+                    <!-- Título de catálogos guardados -->
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Catálogos guardados</h2>
+                        <div class="flex items-center gap-3">
+                            <span id="catalogCount" class="text-xs text-slate-400">0 catálogos</span>
+                            <button onclick="exportAllCatalogs()" class="text-xs text-slate-400 hover:text-slate-600 transition-colors" title="Exportar todos">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button onclick="importCatalog()" class="text-xs text-slate-400 hover:text-slate-600 transition-colors" title="Importar catálogo">
+                                <i class="fas fa-upload"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Grid de catálogos guardados -->
+                    <div id="catalogsGrid" class="catalogs-grid">
+                        <!-- Dinámico -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- PANEL DE FILTROS -->
+            <div id="filterPanel" class="filter-panel-full">
+                <div class="filter-header">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">Filtros de búsqueda</h2>
+                        <p class="text-sm text-slate-500">Selecciona los criterios para filtrar el inventario</p>
+                    </div>
+                    <div class="flex gap-2 flex-wrap">
+                        <button onclick="clearFilters()" class="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fas fa-undo mr-1"></i> Limpiar
                         </button>
-                        <!-- Cerrar en Móvil -->
-                        <button onclick="toggleFilters()" class="lg:hidden text-slate-500 hover:text-slate-800 text-base">
-                            <i class="fas fa-times"></i>
+                        <button onclick="closeFilterPanel()" class="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <i class="fas fa-times mr-1"></i> Cerrar
                         </button>
                     </div>
                 </div>
-                
-                <div class="flex-1 overflow-y-auto p-4 space-y-5">
-                    <!-- Filtro Autor (Cambiado a Dropdown) -->
+
+                <div class="filter-grid">
+                    <!-- Filtro Autor -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Autor</h3>
-                        <select id="filterAutor" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <h3 class="filter-label">Autor</h3>
+                        <select id="filterAutor" class="filter-select">
                             <option value="">Todos los autores</option>
                         </select>
                     </div>
 
-                    <hr class="border-gray-100">
-
                     <!-- Filtro Categoría -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Categoría</h3>
-                        <select id="filterCategoria" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <h3 class="filter-label">Categoría</h3>
+                        <select id="filterCategoria" class="filter-select">
                             <option value="">Todas las categorías</option>
                             <option value="#Pintura">Pintura</option>
                             <option value="#Escultura">Escultura</option>
@@ -265,1211 +131,282 @@
                         </select>
                     </div>
 
-                    <hr class="border-gray-100">
-
                     <!-- Filtro Técnica -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Técnica</h3>
-                        <select id="filterTecnica" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <h3 class="filter-label">Técnica</h3>
+                        <select id="filterTecnica" class="filter-select">
                             <option value="">Seleccionar técnicas</option>
                         </select>
                     </div>
 
-                    <hr class="border-gray-100">
-
-                    <!-- Filtro Precio con Slider -->
+                    <!-- Filtro Precio -->
                     <div>
                         <div class="flex justify-between items-center mb-2">
-                            <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Precio Máximo</h3>
-                            <span id="priceLabel" class="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">Cargando...</span>
+                            <h3 class="filter-label">Precio Máximo</h3>
+                            <span id="priceLabel" class="text-xs font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded-lg">Cargando...</span>
                         </div>
                         <div class="px-1">
                             <input type="range" id="filterPriceRange" min="0" max="100000" value="100000" class="w-full" oninput="updatePriceLabel()">
                         </div>
                     </div>
 
-                    <hr class="border-gray-100">
-
-                    <!-- Filtro Tamaño Dimensional -->
+                    <!-- Filtro Tamaño -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Tamaño Promedio</h3>
-                        <select id="filterSize" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <h3 class="filter-label">Tamaño Promedio</h3>
+                        <select id="filterSize" class="filter-select">
                             <option value="">Cualquier tamaño</option>
-                            <option value="P">Pequeño (< 50 cm)</option>
+                            <option value="P">Pequeño (&lt; 50 cm)</option>
                             <option value="M">Mediano (50 - 100 cm)</option>
                             <option value="G">Grande (100 - 200 cm)</option>
-                            <option value="X">Monumental (> 200 cm)</option>
+                            <option value="X">Monumental (&gt; 200 cm)</option>
                         </select>
-                        <p class="text-[9px] text-gray-400 mt-1.5 leading-tight"><i class="fas fa-info-circle"></i> Promedio calculado entre el largo y el alto de la obra.</p>
                     </div>
-
-                    <hr class="border-gray-100">
 
                     <!-- Filtro Proveedor -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Proveedor</h3>
-                        <select id="filterProveedor" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <h3 class="filter-label">Proveedor</h3>
+                        <select id="filterProveedor" class="filter-select">
                             <option value="">Seleccionar proveedor</option>
                         </select>
                     </div>
 
-                    <hr class="border-gray-100">
-
                     <!-- Filtro Ubicación -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Ubicación</h3>
-                        <select id="filterUbicacion" class="w-full border border-gray-200 rounded p-2 text-xs focus:outline-none focus:border-slate-400 text-slate-700 bg-white">
+                        <h3 class="filter-label">Ubicación</h3>
+                        <select id="filterUbicacion" class="filter-select">
                             <option value="">Seleccionar ubicación</option>
                         </select>
                     </div>
 
-                    <hr class="border-gray-100">
-
                     <!-- Filtro Disponibilidad -->
                     <div>
-                        <h3 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Disponibilidad</h3>
+                        <h3 class="filter-label">Disponibilidad</h3>
                         <div class="space-y-1.5" id="filterDisponibilidad">
-                            <!-- JS Dynamically built checks -->
+                            <!-- JS Dynamically built -->
                         </div>
                     </div>
-
-                    <hr class="border-gray-100">
 
                     <!-- Filtro Certificado -->
-                    <div>
-                        <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700 hover:text-slate-900">
-                            <input type="checkbox" id="filterCertificado" class="w-3.5 h-3.5 text-slate-800 border-gray-300 rounded focus:ring-slate-800">
-                            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Solo con Certificado</span>
+                    <div class="flex items-end">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm text-slate-700 hover:text-slate-900">
+                            <input type="checkbox" id="filterCertificado" class="w-4 h-4 text-slate-800 border-gray-300 rounded focus:ring-slate-800">
+                            <span class="font-medium">Solo con Certificado</span>
                         </label>
                     </div>
-
                 </div>
-                
-                <div class="p-4 border-t border-gray-200 bg-gray-50 flex gap-2">
-                    <button onclick="applyFilters()" class="flex-1 bg-slate-900 hover:bg-slate-800 text-white py-2 rounded text-xs font-bold tracking-wide transition-colors">APLICAR FILTROS</button>
-                </div>
-            </aside>
 
-            <!-- PANEL CENTRAL DE RESULTADOS -->
-            <main class="main-content flex-1 bg-gray-100 overflow-hidden w-full">
+                <!-- Botón Aplicar -->
+                <div class="filter-actions">
+                    <button onclick="closeFilterPanel()" class="px-6 py-2.5 text-sm text-slate-600 hover:text-slate-900 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                        Cancelar
+                    </button>
+                    <button onclick="applyFiltersAndClose()" class="px-8 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-sm font-bold tracking-wide transition-colors shadow-md">
+                        <i class="fas fa-search mr-2"></i> APLICAR FILTROS
+                    </button>
+                </div>
+            </div>
+
+            <!-- PANEL DE RESULTADOS -->
+            <main id="resultsPanel" class="main-content flex-1 bg-gray-100 overflow-hidden w-full hidden">
                 <!-- Cabecera de resultados -->
-                <div class="results-header px-4 py-3 sm:px-8 sm:py-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between sm:items-center bg-white shrink-0 gap-3">
-                    <div class="flex items-center justify-between w-full sm:w-auto gap-3">
-                        <h2 class="font-bold text-base text-slate-800 tracking-wide">RESULTADOS</h2>
-                        <span id="resultsCount" class="bg-slate-800 text-white text-[11px] px-2.5 py-0.5 rounded-full font-medium whitespace-nowrap">0 obras</span>
+                <div class="results-header">
+                    <div class="results-header-top">
+                        <div class="flex items-center gap-3">
+                            <button onclick="goHome()" class="text-slate-500 hover:text-slate-800 text-lg">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <h2 class="font-bold text-base text-slate-800 tracking-wide">RESULTADOS</h2>
+                            <span id="resultsCount" class="bg-slate-800 text-white text-[11px] px-2.5 py-0.5 rounded-full font-medium">0 obras</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button onclick="selectAllWorks()" class="select-all-btn">
+                                <i class="fas fa-check-double mr-1"></i> Seleccionar todo
+                            </button>
+                            <button onclick="deselectAllWorks()" class="select-all-btn">
+                                <i class="fas fa-times mr-1"></i> Deseleccionar
+                            </button>
+                        </div>
                     </div>
-                    <div class="flex items-center justify-between sm:justify-end gap-2 sm:gap-4 w-full sm:w-auto">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs text-slate-500 hidden sm:inline-block">Ordenar:</span>
-                            <select id="orderBySelect" onchange="sortData()" class="border-none text-xs font-medium text-slate-800 bg-transparent focus:outline-none cursor-pointer">
-                                <option value="recientes">Más recientes</option>
-                                <option value="priceDesc">Precio: Mayor a Menor</option>
-                                <option value="priceAsc">Precio: Menor a Mayor</option>
-                            </select>
+                    
+                    <!-- Barra de configuración rápida del PDF -->
+                    <div class="pdf-config-bar">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Diseño:</span>
+                        <button class="page-layout-btn active" data-layout="1" onclick="setPageLayout(1)">1 obra/pág</button>
+                        <button class="page-layout-btn" data-layout="2" onclick="setPageLayout(2)">2 obras/pág</button>
+                        <button class="page-layout-btn" data-layout="4" onclick="setPageLayout(4)">4 obras/pág</button>
+                        
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider ml-2">Mostrar:</span>
+                        <div class="config-group">
+                            <label><input type="checkbox" id="cfgPrices" checked onchange="syncConfigs()"> Precios</label>
+                            <label><input type="checkbox" id="cfgDims" checked onchange="syncConfigs()"> Dimensiones</label>
+                            <label><input type="checkbox" id="cfgLocation" checked onchange="syncConfigs()"> Ubicación</label>
+                            <label><input type="checkbox" id="cfgProveedor" onchange="syncConfigs()"> Proveedor</label>
+                            <label><input type="checkbox" id="cfgFicha" checked onchange="syncConfigs()"> Ficha técnica</label>
                         </div>
-                        <div class="flex bg-gray-100 rounded border border-gray-200 p-0.5 text-xs shrink-0">
-                            <button id="btnGridView" onclick="setViewMode('grid')" class="bg-white shadow-sm px-2 py-1 rounded text-slate-800 transition-colors"><i class="fas fa-th-large"></i></button>
-                            <button id="btnListView" onclick="setViewMode('list')" class="px-2 py-1 rounded text-gray-400 hover:text-slate-800 transition-colors"><i class="fas fa-list"></i></button>
+                        
+                        <div class="view-toggle">
+                            <button id="btnGridView" onclick="setViewMode('grid')" class="active"><i class="fas fa-th-large"></i></button>
+                            <button id="btnListView" onclick="setViewMode('list')"><i class="fas fa-list"></i></button>
                         </div>
+                    </div>
+                    
+                    <!-- Ordenar -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-500">Ordenar:</span>
+                        <select id="orderBySelect" onchange="sortData()" class="order-select">
+                            <option value="recientes">Más recientes</option>
+                            <option value="priceDesc">Precio: Mayor a Menor</option>
+                            <option value="priceAsc">Precio: Menor a Mayor</option>
+                        </select>
                     </div>
                 </div>
 
                 <!-- Grilla Scrolleable -->
-                <div class="grid-wrapper flex-1 overflow-y-auto">
-                    <div id="gridContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                <div class="grid-wrapper">
+                    <div id="gridContainer" class="grid-container">
                         <!-- Dinámico -->
                     </div>
                     
-                    <div id="emptyState" class="hidden h-full flex flex-col items-center justify-center text-slate-400 py-20 px-4 text-center">
+                    <div id="emptyState" class="empty-state hidden">
                         <i id="emptyStateIcon" class="fas fa-filter text-5xl mb-3 opacity-20"></i>
-                        <p id="emptyStateTitle" class="text-base font-medium text-slate-600">Configura tu búsqueda inicial</p>
-                        <p id="emptyStateDesc" class="text-xs mt-1">Selecciona tus filtros en el panel y haz clic en APLICAR para ver el inventario.</p>
+                        <p id="emptyStateTitle" class="text-base font-medium text-slate-600">No se encontraron resultados</p>
+                        <p id="emptyStateDesc" class="text-xs mt-1">Prueba modificando los filtros de búsqueda.</p>
                     </div>
                 </div>
             </main>
 
-            <!-- PANEL DERECHO DE CONFIGURACIÓN DE PDF -->
-            <aside id="rightSidebar" class="absolute lg:relative right-0 top-0 w-80 h-full bg-white border-l border-gray-200 flex flex-col shrink-0 z-40 shadow-2xl lg:shadow-[-4px_0_15px_-3px_rgba(0,0,0,0.03)] transform translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
-                
-                <!-- Resumen actual en Dark Blue -->
-                <div class="bg-slate-900 text-white p-5 shrink-0 relative">
-                    <!-- Botón de cierre móvil -->
-                    <button onclick="toggleConfig()" class="lg:hidden absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
-                        <i class="fas fa-times"></i>
-                    </button>
-
-                    <div class="flex justify-between items-center mb-3 pr-8 lg:pr-0">
-                        <h2 class="font-bold text-xs tracking-wide uppercase text-gray-300">CATÁLOGO ACTUAL</h2>
+            <!-- PANEL DE CONFIGURACIÓN -->
+            <div id="configPanel" class="config-panel hidden" onclick="closeConfigPanel()">
+                <div class="config-panel-content" onclick="event.stopPropagation()">
+                    <div class="config-panel-header">
+                        <button onclick="closeConfigPanel()" class="config-close-btn">
+                            <i class="fas fa-times"></i>
+                        </button>
+                        <h2 class="font-bold text-xs tracking-wide uppercase text-gray-300">CONFIGURACIÓN</h2>
+                        <p id="selectedCountText" class="text-sm text-gray-200 mb-2 font-medium">0 obras seleccionadas</p>
+                        <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-0.5">Valor total estimado</p>
+                        <p id="totalValueText" class="text-2xl font-bold font-serif-pdf mb-3 text-gray-100">$0 MXN</p>
+                        <button onclick="clearSelection()" class="config-clear-btn">LIMPIAR SELECCIÓN</button>
                     </div>
-                    <p id="selectedCountText" class="text-sm text-gray-200 mb-2 font-medium">0 obras seleccionadas</p>
-                    <p class="text-[10px] text-gray-400 uppercase tracking-widest mb-0.5">Valor total estimado</p>
-                    <p id="totalValueText" class="text-2xl font-bold font-serif-pdf mb-3 text-gray-100">$0 MXN</p>
-                    
-                    <button onclick="clearSelection()" class="w-full border border-slate-700 hover:bg-slate-800 py-2 rounded text-[11px] font-medium transition-colors">LIMPIAR SELECCIÓN</button>
+
+                    <div class="config-panel-body">
+                        <!-- Configuración de portada -->
+                        <div>
+                            <h3 class="config-section-title">CONFIGURACIÓN DE PORTADA</h3>
+                            <div class="config-section">
+                                <div>
+                                    <label class="config-label">TÍTULO DEL CATÁLOGO</label>
+                                    <input type="text" id="pdfArtistName" value="CATÁLOGO GENERAL" class="config-input">
+                                </div>
+                                <div>
+                                    <label class="config-label">SUBTÍTULO</label>
+                                    <input type="text" id="pdfSubtitle" value="OBRA SELECCIONADA" class="config-input">
+                                </div>
+                                <div>
+                                    <label class="config-label">FECHA / ACTUALIZACIÓN</label>
+                                    <input type="text" id="pdfUpdateText" value="ACTUALIZACIÓN 2026" class="config-input">
+                                </div>
+                                <div>
+                                    <label class="config-label">NOTA LEGAL / PIE DE PÁGINA</label>
+                                    <textarea id="pdfLegalNote" rows="2" class="config-textarea">Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.</textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="config-divider">
+
+                        <!-- Configuración del catálogo -->
+                        <div>
+                            <h3 class="config-section-title">CONFIGURACIÓN DEL CATÁLOGO</h3>
+                            <div class="config-toggles">
+                                <div class="config-toggle-item">
+                                    <span class="text-xs text-slate-700 font-medium">Mostrar precios</span>
+                                    <div class="toggle-wrapper">
+                                        <input type="checkbox" id="cfgPricesPanel" checked class="toggle-switch" />
+                                        <label for="cfgPricesPanel" class="toggle-bg"></label>
+                                    </div>
+                                </div>
+                                <div class="config-toggle-item">
+                                    <span class="text-xs text-slate-700 font-medium">Mostrar dimensiones</span>
+                                    <div class="toggle-wrapper">
+                                        <input type="checkbox" id="cfgDimsPanel" checked class="toggle-switch" />
+                                        <label for="cfgDimsPanel" class="toggle-bg"></label>
+                                    </div>
+                                </div>
+                                <div class="config-toggle-item">
+                                    <span class="text-xs text-slate-700 font-medium">Mostrar ubicación</span>
+                                    <div class="toggle-wrapper">
+                                        <input type="checkbox" id="cfgLocationPanel" checked class="toggle-switch" />
+                                        <label for="cfgLocationPanel" class="toggle-bg"></label>
+                                    </div>
+                                </div>
+                                <div class="config-toggle-item">
+                                    <span class="text-xs text-slate-700 font-medium">Mostrar proveedor</span>
+                                    <div class="toggle-wrapper">
+                                        <input type="checkbox" id="cfgProveedorPanel" class="toggle-switch" />
+                                        <label for="cfgProveedorPanel" class="toggle-bg"></label>
+                                    </div>
+                                </div>
+                                <div class="config-toggle-item opacity-60">
+                                    <span class="text-xs text-slate-700 font-medium">Ficha técnica completa</span>
+                                    <div class="toggle-wrapper">
+                                        <input type="checkbox" id="cfgFichaPanel" checked class="toggle-switch" />
+                                        <label for="cfgFichaPanel" class="toggle-bg"></label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
-                <!-- Parámetros modificables del catálogo -->
-                <div class="flex-1 overflow-y-auto p-5 space-y-6">
-                    
-                    <!-- Textos e Identidad del PDF -->
-                    <div>
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">CONFIGURACIÓN DE PORTADA</h3>
-                        <div class="space-y-2.5 bg-gray-50 p-3 rounded border border-gray-200">
-                            <div>
-                                <label class="text-[9px] text-slate-500 font-bold block mb-1">TÍTULO DEL ARTISTA / CATÁLOGO</label>
-                                <input type="text" id="pdfArtistName" value="CATÁLOGO GENERAL" class="w-full text-xs p-2 border border-gray-200 rounded focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="text-[9px] text-slate-500 font-bold block mb-1">SUBTÍTULO</label>
-                                <input type="text" id="pdfSubtitle" value="OBRA SELECCIONADA" class="w-full text-xs p-2 border border-gray-200 rounded focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="text-[9px] text-slate-500 font-bold block mb-1">FECHA / ACTUALIZACIÓN</label>
-                                <input type="text" id="pdfUpdateText" value="ACTUALIZACIÓN 2026" class="w-full text-xs p-2 border border-gray-200 rounded focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="text-[9px] text-slate-500 font-bold block mb-1">NOTA LEGAL / PIE DE PÁGINA</label>
-                                <textarea id="pdfLegalNote" rows="2" class="w-full text-[10px] p-2 border border-gray-200 rounded focus:outline-none leading-relaxed">Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.</textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="border-gray-100">
-
-                    <!-- Toggles visuales -->
-                    <div>
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">CONFIGURACIÓN DEL CATÁLOGO</h3>
-                        <div class="space-y-3.5">
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-slate-700 font-medium">Mostrar precios</span>
-                                <div class="relative inline-block w-8 align-middle select-none">
-                                    <input type="checkbox" id="cfgPrices" checked class="toggle-switch absolute block w-4.5 h-4.5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10 right-3.5"/>
-                                    <label for="cfgPrices" class="toggle-bg block overflow-hidden h-4.5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-slate-700 font-medium">Mostrar dimensiones</span>
-                                <div class="relative inline-block w-8 align-middle select-none">
-                                    <input type="checkbox" id="cfgDims" checked class="toggle-switch absolute block w-4.5 h-4.5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10 right-3.5"/>
-                                    <label for="cfgDims" class="toggle-bg block overflow-hidden h-4.5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-slate-700 font-medium">Mostrar ubicación</span>
-                                <div class="relative inline-block w-8 align-middle select-none">
-                                    <input type="checkbox" id="cfgLocation" checked class="toggle-switch absolute block w-4.5 h-4.5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10 right-3.5"/>
-                                    <label for="cfgLocation" class="toggle-bg block overflow-hidden h-4.5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <span class="text-xs text-slate-700 font-medium">Mostrar proveedor</span>
-                                <div class="relative inline-block w-8 align-middle select-none">
-                                    <input type="checkbox" id="cfgProveedor" class="toggle-switch absolute block w-4.5 h-4.5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10 right-3.5"/>
-                                    <label for="cfgProveedor" class="toggle-bg block overflow-hidden h-4.5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center opacity-60">
-                                <span class="text-xs text-slate-700 font-medium">Ficha técnica completa</span>
-                                <div class="relative inline-block w-8 align-middle select-none">
-                                    <input type="checkbox" id="cfgFicha" checked class="toggle-switch absolute block w-4.5 h-4.5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10 right-3.5"/>
-                                    <label for="cfgFicha" class="toggle-bg block overflow-hidden h-4.5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center opacity-60">
-                                <span class="text-xs text-slate-700 font-medium">Incluir biografía del artista</span>
-                                <div class="relative inline-block w-8 align-middle select-none">
-                                    <input type="checkbox" id="cfgBiography" class="toggle-switch absolute block w-4.5 h-4.5 rounded-full bg-white border-2 border-gray-300 appearance-none cursor-pointer transition-all duration-300 z-10 right-3.5"/>
-                                    <label for="cfgBiography" class="toggle-bg block overflow-hidden h-4.5 rounded-full bg-gray-300 cursor-pointer transition-colors duration-300"></label>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <hr class="border-gray-100">
-
-                    <!-- Diseño de página -->
-                    <div>
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">DISEÑO DE PÁGINA</h3>
-                        <div class="flex border border-gray-200 rounded overflow-hidden">
-                            <button class="flex-1 py-1.5 text-[9px] font-bold bg-slate-900 text-white text-center border-r border-slate-700">1 obra<br>por página</button>
-                            <button class="flex-1 py-1.5 text-[9px] font-medium bg-gray-50 text-slate-500 text-center border-r border-gray-200 opacity-50 cursor-not-allowed">2 obras<br>por página</button>
-                            <button class="flex-1 py-1.5 text-[9px] font-medium bg-gray-50 text-slate-500 text-center opacity-50 cursor-not-allowed">4 obras<br>por página</button>
-                        </div>
-
-                        <h3 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 mt-5">PLANTILLA</h3>
-                        <select class="w-full border border-gray-200 rounded p-2 text-xs text-slate-700 focus:outline-none">
-                            <option>Comercial - Ventas</option>
-                            <option>Exposición Galerías</option>
-                        </select>
-
-                        <!-- Tarjeta miniatura simulando la de la imagen -->
-                        <div class="border border-gray-200 p-2.5 rounded bg-gray-50 flex items-center gap-3.5 mt-3">
-                            <div class="w-16 h-22 bg-slate-900 rounded shadow-sm relative overflow-hidden flex flex-col items-center justify-center border border-slate-800 shrink-0">
-                                <div class="text-[4px] text-white/50 mb-0.5 tracking-wider">RTBROK</div>
-                                <div class="text-[3px] text-white text-center font-serif px-1 leading-tight uppercase">CATÁLOGO DE ESCULTURA CONTEMPORÁNEA</div>
-                                <div class="absolute bottom-0 w-full h-1/3 bg-gradient-to-t from-black/80 to-transparent"></div>
-                            </div>
-                            <div class="text-[10px] text-slate-500 space-y-1">
-                                <div class="flex items-center gap-1.5"><div class="w-1 h-1 rounded-full bg-slate-400"></div> Portada integrada</div>
-                                <div class="flex items-center gap-1.5"><div class="w-1 h-1 rounded-full bg-slate-400"></div> Obras e imágenes</div>
-                                <div class="flex items-center gap-1.5"><div class="w-1 h-1 rounded-full bg-slate-400"></div> Precios en MXN</div>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </aside>
-        </div>
-
-        <!-- PANEL DE CATÁLOGOS LOCALES (Emergente arriba del botón de historial) -->
-        <div id="localCatalogsPanel" class="hidden fixed bottom-20 right-2 sm:right-6 w-[calc(100%-1rem)] sm:w-80 max-w-full bg-slate-900 text-white rounded-lg shadow-2xl border border-slate-800 flex flex-col z-50 overflow-hidden max-h-[380px]">
-            <div class="bg-slate-950 p-3 flex justify-between items-center border-b border-slate-800">
-                <span class="text-xs font-bold tracking-wider text-gray-300"><i class="fas fa-folder-open mr-1.5"></i> CATÁLOGOS LOCALES</span>
-                <button onclick="toggleLocalCatalogsPanel()" class="text-gray-400 hover:text-white transition-colors"><i class="fas fa-times"></i></button>
             </div>
-            <div id="localCatalogsList" class="flex-1 overflow-y-auto p-3 space-y-2 text-xs">
-                <!-- Dinámico -->
+
+            <!-- PANEL DE CATÁLOGOS LOCALES -->
+            <div id="localCatalogsPanel" class="local-catalogs-panel hidden">
+                <div class="local-catalogs-header">
+                    <span class="text-xs font-bold tracking-wider text-gray-300"><i class="fas fa-folder-open mr-1.5"></i> CATÁLOGOS LOCALES</span>
+                    <button onclick="toggleLocalCatalogsPanel()" class="text-gray-400 hover:text-white transition-colors"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="localCatalogsList" class="local-catalogs-list">
+                    <!-- Dinámico -->
+                </div>
             </div>
         </div>
 
-        <!-- BARRA INFERIOR (FOOTER ACCIONES) -->
-        <footer class="app-footer bg-slate-900 text-white border-t border-slate-800 flex items-center justify-center gap-3 sm:gap-6 shrink-0 text-[10px] sm:text-xs font-bold tracking-wider z-20 relative px-4 shadow-[0_-4px_10px_rgba(0,0,0,0.1)]">
-            <button onclick="generateCatalogPDF()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded transition-colors flex items-center gap-2 shadow-md border border-blue-500">
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <button onclick="generateCatalogPDF()" class="btn-pdf">
                 <i class="fas fa-file-pdf text-sm sm:text-base"></i> <span class="hidden sm:inline">GENERAR </span>PDF
             </button>
-            <div class="w-px h-6 bg-slate-700"></div>
-            <button onclick="saveCatalogToLocal()" class="hover:text-blue-400 transition-colors flex items-center gap-2">
+            <div class="footer-divider"></div>
+            <button onclick="saveCatalogToLocal()" class="btn-footer">
                 <i class="fas fa-save text-sm sm:text-base"></i> GUARDAR<span class="hidden sm:inline"> CATÁLOGO</span>
             </button>
-            <div class="w-px h-6 bg-slate-700"></div>
-            <button onclick="toggleLocalCatalogsPanel()" class="hover:text-blue-400 transition-colors flex items-center gap-2">
+            <div class="footer-divider"></div>
+            <button onclick="toggleLocalCatalogsPanel()" class="btn-footer">
                 <i class="fas fa-history text-sm sm:text-base"></i> HISTORIAL<span class="hidden sm:inline"> (GUARDADOS)</span>
             </button>
         </footer>
 
-        <!-- LOADER / PANTALLA DE CARGA -->
-        <div id="loader" class="fixed inset-0 loading-overlay z-50 flex items-center justify-center flex-col hidden">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-slate-900 mb-4"></div>
+        <!-- LOADER -->
+        <div id="loader" class="loader-overlay hidden">
+            <div class="loader-spinner"></div>
             <h3 class="text-xl font-serif text-slate-900 font-bold text-center" id="loaderText">Cargando base de datos...</h3>
         </div>
 
-        <!-- NOTIFICACIONES CUSTOM -->
-        <div id="customToast" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 w-max max-w-[90vw] bg-slate-900 text-white text-xs px-4 py-3 rounded-md shadow-lg flex items-center gap-2 transition-all duration-300 opacity-0 translate-y-5 pointer-events-none z-50">
+        <!-- TOAST -->
+        <div id="customToast" class="custom-toast">
             <span id="toastIcon"><i class="fas fa-info-circle text-blue-400"></i></span>
             <span id="toastMessage" class="truncate"></span>
         </div>
     </div>
 
-    <script>
-    // --- UI RESPONSIVE HELPERS ---
-    function toggleFilters() {
-        const sidebar = document.getElementById('leftSidebar');
-        const overlay = document.getElementById('mobileOverlay');
-        sidebar.classList.toggle('-translate-x-full');
-        if (!sidebar.classList.contains('-translate-x-full')) {
-            overlay.classList.remove('hidden');
-            document.getElementById('rightSidebar').classList.add('translate-x-full');
-        } else {
-            overlay.classList.add('hidden');
-        }
-    }
-
-    function toggleConfig() {
-        const sidebar = document.getElementById('rightSidebar');
-        const overlay = document.getElementById('mobileOverlay');
-        sidebar.classList.toggle('translate-x-full');
-        if (!sidebar.classList.contains('translate-x-full')) {
-            overlay.classList.remove('hidden');
-            document.getElementById('leftSidebar').classList.add('-translate-x-full');
-        } else {
-            overlay.classList.add('hidden');
-        }
-    }
-
-    function closeAllSidebars() {
-        document.getElementById('leftSidebar').classList.add('-translate-x-full');
-        document.getElementById('rightSidebar').classList.add('translate-x-full');
-        document.getElementById('mobileOverlay').classList.add('hidden');
-    }
-
-
-    // --- CONFIGURACIÓN Y ESTADOS GLOBALES ---
-    const DB_URL = "https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec";
-
-    let rawObras = [];
-    let rawComisiones = [];
-    let filteredObras = [];
-    let selectedIds = new Set();
-    let hasAppliedInitialFilters = false;
-    let currentViewMode = 'grid';
-    const { jsPDF } = window.jspdf;
-    const LOGO_PATH = 'rtbrok_logo.png';
-    const AVAILABILITY_TEXT = "TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CONFIRMACIÓN";
-
-    // DOM references
-    const gridContainer = document.getElementById('gridContainer');
-    const emptyState = document.getElementById('emptyState');
-    const resultsCount = document.getElementById('resultsCount');
-    const selectedCountText = document.getElementById('selectedCountText');
-    const totalValueText = document.getElementById('totalValueText');
-
-    // --- CARGA DE LA BASE DE DATOS ---
-    window.addEventListener('DOMContentLoaded', async () => {
-        await fetchSheetsDatabase();
-        loadLocalCatalogs(); 
-    });
-
-    // Función de notificaciones visuales (Toast)
-    function showToast(message, type = 'info') {
-        const toast = document.getElementById('customToast');
-        const msgSpan = document.getElementById('toastMessage');
-        const iconSpan = document.getElementById('toastIcon');
-
-        msgSpan.innerText = message;
-        if (type === 'success') {
-            iconSpan.innerHTML = '<i class="fas fa-check-circle text-emerald-400 text-sm"></i>';
-        } else if (type === 'error') {
-            iconSpan.innerHTML = '<i class="fas fa-exclamation-circle text-red-400 text-sm"></i>';
-        } else {
-            iconSpan.innerHTML = '<i class="fas fa-info-circle text-blue-400 text-sm"></i>';
-        }
-
-        toast.classList.remove('opacity-0', 'translate-y-5', 'pointer-events-none');
-        toast.classList.add('opacity-100', 'translate-y-0');
-
-        setTimeout(() => {
-            toast.classList.add('opacity-0', 'translate-y-5', 'pointer-events-none');
-            toast.classList.remove('opacity-100', 'translate-y-0');
-        }, 4000);
-    }
-
-    async function fetchSheetsDatabase() {
-        const loader = document.getElementById('loader');
-        const loaderText = document.getElementById('loaderText');
-        loaderText.innerText = "Cargando base de datos de RTBROK...";
-        loader.classList.remove('hidden');
-
-        try {
-            const response = await fetch(DB_URL);
-            const data = await response.json();
-            
-            if (data.registrosObra && Array.isArray(data.registrosObra)) {
-                rawObras = data.registrosObra.map((obra, idx) => ({
-                    ...obra,
-                    id: obra.id || `obra_fallback_${idx}_${Date.now()}`
-                }));
-                rawComisiones = data.comisiones || [];
-                
-                filteredObras = [];
-                buildDynamicFilters();
-                renderGrid(filteredObras);
-                
-                if (window.innerWidth < 1024) {
-                    toggleFilters();
-                }
-
-            } else {
-                throw new Error("No se pudo obtener la lista de obras.");
-            }
-        } catch (err) {
-            console.error("Error al cargar la DB:", err);
-            showToast("Ocurrió un problema al sincronizar la base de datos.", "error");
-        } finally {
-            loader.classList.add('hidden');
-        }
-    }
-
-    // --- CONVERTIDOR DE DRIVE A LH3 (EVITA CORS) ---
-    function getLH3ImageUrl(adjuntosArray) {
-        if (!adjuntosArray || adjuntosArray.length === 0) return null;
-        const adjunto = adjuntosArray[0];
-        const url = typeof adjunto === 'string' ? adjunto : (adjunto.url || '');
-        if (!url) return null;
-
-        const fileIdMatch = url.match(/[-\w]{25,}/);
-        if (fileIdMatch) {
-            return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}=s400`;
-        }
-        return url;
-    }
-
-    function getFullLH3ImageUrl(adjuntosArray) {
-        if (!adjuntosArray || adjuntosArray.length === 0) return null;
-        const adjunto = adjuntosArray[0];
-        const url = typeof adjunto === 'string' ? adjunto : (adjunto.url || '');
-        if (!url) return null;
-
-        const fileIdMatch = url.match(/[-\w]{25,}/);
-        if (fileIdMatch) {
-            return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`;
-        }
-        return url;
-    }
-
-    // --- DINÁMICA DE FILTROS ---
-    function buildDynamicFilters() {
-        const autorCounts = {};
-        let maxPrecioGlobal = 0; 
-
-        rawObras.forEach(o => {
-            const autor = (o.autor || "Desconocido").trim();
-            autorCounts[autor] = (autorCounts[autor] || 0) + 1;
-            
-            const p = parseFloat(o.precio_lista) || 0;
-            if(p > maxPrecioGlobal) maxPrecioGlobal = p;
-        });
-        const sortedAutores = Object.entries(autorCounts).sort((a, b) => b[1] - a[1]);
-        
-        const filterAutor = document.getElementById('filterAutor');
-        filterAutor.innerHTML = '<option value="">Todos los autores</option>';
-        sortedAutores.forEach(([autor, count]) => {
-            filterAutor.innerHTML += `<option value="${autor}">${autor} (${count})</option>`;
-        });
-
-        const tecnicas = [...new Set(rawObras.map(o => (o.tipo_obra || "Técnica mixta").trim()))].filter(Boolean).sort();
-        const filterTecnica = document.getElementById('filterTecnica');
-        filterTecnica.innerHTML = '<option value="">Seleccionar técnica</option>' + 
-            tecnicas.map(t => `<option value="${t}">${t}</option>`).join('');
-
-        const filterProveedor = document.getElementById('filterProveedor');
-        const proveedoresMap = {};
-        rawComisiones.forEach(c => {
-            if (c.id && c.provenance) {
-                proveedoresMap[c.id] = c.provenance;
-            }
-        });
-
-        const proveedoresIdsUsados = [...new Set(rawObras.map(o => (o.provenance || "").toString().trim()))].filter(Boolean);
-        filterProveedor.innerHTML = '<option value="">Seleccionar proveedor</option>';
-        proveedoresIdsUsados.forEach(id => {
-            const textLabel = proveedoresMap[id] || id; 
-            filterProveedor.innerHTML += `<option value="${id}">${textLabel}</option>`;
-        });
-
-        const ubicaciones = [...new Set(rawObras.map(o => (o.ubicacion || "México").trim()))].filter(Boolean).sort();
-        const filterUbicacion = document.getElementById('filterUbicacion');
-        filterUbicacion.innerHTML = '<option value="">Seleccionar ubicación</option>' + 
-            ubicaciones.map(u => `<option value="${u}">${u}</option>`).join('');
-
-        const estatusDisponibles = [...new Set(rawObras.map(o => (o.estatus || "Bodega").trim()))].filter(Boolean).sort();
-        const filterDisponibilidad = document.getElementById('filterDisponibilidad');
-        filterDisponibilidad.innerHTML = '';
-        estatusDisponibles.forEach(est => {
-            filterDisponibilidad.innerHTML += `
-                <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-700 hover:text-slate-900">
-                    <input type="checkbox" value="${est}" class="dispo-checkbox w-3.5 h-3.5 text-slate-800 border-gray-300 rounded focus:ring-slate-800">
-                    <span>${est}</span>
-                </label>
-            `;
-        });
-
-        maxPrecioGlobal = Math.ceil(maxPrecioGlobal / 10000) * 10000 || 1000000;
-        const priceRange = document.getElementById('filterPriceRange');
-        priceRange.max = maxPrecioGlobal;
-        priceRange.value = maxPrecioGlobal;
-        updatePriceLabel();
-    }
-
-    function updatePriceLabel() {
-        const val = document.getElementById('filterPriceRange').value;
-        const max = document.getElementById('filterPriceRange').max;
-        const label = document.getElementById('priceLabel');
-        if (val == max) {
-            label.innerText = "Cualquier Precio";
-            label.classList.remove('bg-blue-100', 'text-blue-700');
-            label.classList.add('bg-slate-100', 'text-slate-700');
-        } else {
-            label.innerText = `Hasta $${parseInt(val).toLocaleString('en-US')} MXN`;
-            label.classList.remove('bg-slate-100', 'text-slate-700');
-            label.classList.add('bg-blue-100', 'text-blue-700');
-        }
-    }
-
-    // --- APLICACIÓN DE FILTROS ---
-    function applyFilters() {
-        hasAppliedInitialFilters = true;
-        const globalSearch = document.getElementById('globalSearch').value.toLowerCase().trim();
-        const selectAutor = document.getElementById('filterAutor').value;
-        const selectTecnica = document.getElementById('filterTecnica').value;
-        const selectProveedor = document.getElementById('filterProveedor').value;
-        const selectUbicacion = document.getElementById('filterUbicacion').value;
-        const selectCategoria = document.getElementById('filterCategoria').value;
-        const checkCertificado = document.getElementById('filterCertificado').checked;
-        const selectSize = document.getElementById('filterSize').value;
-        
-        const maxPriceLimit = parseFloat(document.getElementById('filterPriceRange').value) || Infinity;
-        const isSliderActive = maxPriceLimit < parseFloat(document.getElementById('filterPriceRange').max);
-
-        const checkedDispos = Array.from(document.querySelectorAll('.dispo-checkbox:checked')).map(cb => cb.value);
-
-        filteredObras = rawObras.filter(o => {
-            const oNombre = (o.nombre_obra || "").toLowerCase();
-            const oAutor = (o.autor || "").toLowerCase();
-            const oTecnica = (o.tipo_obra || "").toLowerCase();
-            const oClave = (o.clave || "").toLowerCase();
-            const oUbicacion = o.ubicacion || "";
-            const oEstatus = o.estatus || "";
-            const oProv = o.provenance || "";
-            
-            const oTagsLower = Array.isArray(o.tags) ? o.tags.map(t => typeof t === 'string' ? t.toLowerCase().trim() : '') : [];
-            const oPrecio = parseFloat(o.precio_lista) || 0;
-
-            if (globalSearch) {
-                const matchesGlobal = oNombre.includes(globalSearch) || 
-                                      oAutor.includes(globalSearch) || 
-                                      oTecnica.includes(globalSearch) || 
-                                      oClave.includes(globalSearch);
-                if (!matchesGlobal) return false;
-            }
-
-            if (selectAutor && o.autor !== selectAutor) return false;
-            if (checkedDispos.length > 0 && !checkedDispos.includes(oEstatus)) return false;
-            if (selectTecnica && o.tipo_obra !== selectTecnica) return false;
-            if (selectProveedor && oProv.toString().trim() !== selectProveedor.toString().trim()) return false;
-            if (selectUbicacion && oUbicacion !== selectUbicacion) return false;
-            
-            if (isSliderActive && oPrecio > maxPriceLimit) return false;
-
-            if (selectSize) {
-                const dimensionPrimaria = parseFloat(o.largo) || parseFloat(o.ancho) || 0;
-                const dimensionSecundaria = parseFloat(o.alto) || 0;
-                const sizeAvg = (dimensionPrimaria + dimensionSecundaria) / 2;
-
-                if (selectSize === 'P' && sizeAvg >= 50) return false;
-                if (selectSize === 'M' && (sizeAvg < 50 || sizeAvg >= 100)) return false;
-                if (selectSize === 'G' && (sizeAvg < 100 || sizeAvg >= 200)) return false;
-                if (selectSize === 'X' && sizeAvg < 200) return false;
-            }
-
-            if (selectCategoria && !oTagsLower.includes(selectCategoria.toLowerCase())) return false;
-            if (checkCertificado && !oTagsLower.includes('#certificado')) return false;
-
-            return true;
-        });
-
-        sortData();
-
-        if (window.innerWidth < 1024) {
-            closeAllSidebars();
-        }
-    }
-
-    function sortData() {
-        const val = document.getElementById('orderBySelect').value;
-        if (val === 'priceDesc') {
-            filteredObras.sort((a, b) => (parseFloat(b.precio_lista) || 0) - (parseFloat(a.precio_lista) || 0));
-        } else if (val === 'priceAsc') {
-            filteredObras.sort((a, b) => (parseFloat(a.precio_lista) || 0) - (parseFloat(b.precio_lista) || 0));
-        } else {
-            filteredObras.sort((a, b) => a.id.toString().localeCompare(b.id.toString()));
-        }
-        renderGrid(filteredObras);
-    }
-
-    function clearFilters() {
-        document.getElementById('globalSearch').value = '';
-        document.getElementById('filterCategoria').value = '';
-        document.getElementById('filterTecnica').value = '';
-        document.getElementById('filterProveedor').value = '';
-        document.getElementById('filterUbicacion').value = '';
-        document.getElementById('filterAutor').value = '';
-        document.getElementById('filterCertificado').checked = false;
-        document.getElementById('filterSize').value = '';
-
-        const priceRange = document.getElementById('filterPriceRange');
-        priceRange.value = priceRange.max;
-        updatePriceLabel();
-
-        document.querySelectorAll('.dispo-checkbox').forEach(cb => cb.checked = false);
-
-        hasAppliedInitialFilters = false; 
-        filteredObras = [];
-        renderGrid(filteredObras);
-    }
-
-    // --- MANEJO DE VISTA (LISTA VS GRID) ---
-    function setViewMode(mode) {
-        currentViewMode = mode;
-        const btnGrid = document.getElementById('btnGridView');
-        const btnList = document.getElementById('btnListView');
-
-        if (mode === 'grid') {
-            btnGrid.className = 'bg-white shadow-sm px-2 py-1 rounded text-slate-800 transition-colors';
-            btnList.className = 'px-2 py-1 rounded text-gray-400 hover:text-slate-800 transition-colors';
-            gridContainer.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6';
-        } else {
-            btnList.className = 'bg-white shadow-sm px-2 py-1 rounded text-slate-800 transition-colors';
-            btnGrid.className = 'px-2 py-1 rounded text-gray-400 hover:text-slate-800 transition-colors';
-            gridContainer.className = 'flex flex-col gap-4 sm:gap-6';
-        }
-        
-        renderGrid(filteredObras);
-    }
-
-    // --- MANEJO DE GRIDS (RESULTADOS) ---
-    function renderGrid(obras) {
-        gridContainer.innerHTML = '';
-        resultsCount.innerText = `${obras.length} obras`;
-        const emptyStateIcon = document.getElementById('emptyStateIcon');
-        const emptyStateTitle = document.getElementById('emptyStateTitle');
-        const emptyStateDesc = document.getElementById('emptyStateDesc');
-
-        if (obras.length === 0) {
-            gridContainer.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-
-            if (!hasAppliedInitialFilters) {
-                emptyStateIcon.className = 'fas fa-filter text-5xl mb-3 opacity-20';
-                emptyStateTitle.innerText = 'Configura tu búsqueda inicial';
-                emptyStateDesc.innerText = 'Selecciona tus filtros en el panel y haz clic en APLICAR para ver el inventario.';
-            } else {
-                emptyStateIcon.className = 'fas fa-image text-5xl mb-3 opacity-20';
-                emptyStateTitle.innerText = 'No se encontraron resultados';
-                emptyStateDesc.innerText = 'Prueba desactivando o modificando los filtros del panel izquierdo.';
-            }
-            return;
-        }
-
-        gridContainer.classList.remove('hidden');
-        emptyState.classList.add('hidden');
-
-        const isList = currentViewMode === 'list';
-
-        obras.forEach(obra => {
-            const isSelected = selectedIds.has(obra.id);
-            const imageUrl = getLH3ImageUrl(obra.adjuntos);
-            const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400' fill='%23f1f5f9'><rect width='100%' height='100%'/><path d='M140 250 L200 170 L260 250' stroke='%23cbd5e1' stroke-width='2' fill='none'/><circle cx='240' cy='145' r='12' fill='%23cbd5e1'/></svg>`;
-
-            const dimParts = [];
-            if (obra.ancho) dimParts.push(`${obra.ancho}`);
-            if (obra.alto) dimParts.push(`${obra.alto}`);
-            if (obra.largo) dimParts.push(`${obra.largo}`);
-            const dimStr = dimParts.length > 0 ? `${dimParts.join(' x ')} cm` : "S/M";
-
-            const precio = parseFloat(obra.precio_lista) || 0;
-            const precioFormatted = precio > 0 ? `$${precio.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : "A consultar";
-
-            const card = document.createElement('div');
-            card.id = `card-${obra.id}`;
-            
-            card.className = `bg-white rounded-lg overflow-hidden border transition-all duration-200 group relative ${
-                isSelected ? 'border-slate-800 ring-1 ring-slate-800 shadow-md' : 'border-gray-200 hover:shadow-sm'
-            } ${isList ? 'flex flex-row h-36 sm:h-44' : 'flex flex-col'}`;
-
-            if (isList) {
-                card.innerHTML = `
-                    <div class="relative bg-slate-50 w-36 sm:w-44 h-full flex items-center justify-center overflow-hidden cursor-pointer shrink-0" onclick="toggleCardSelection('${obra.id}')">
-                        <img src="${imageUrl || fallbackSvg}" onerror="this.src='${fallbackSvg}'" class="w-full h-full object-contain p-3 transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" alt="${obra.nombre_obra}">
-                        <div class="absolute top-2 left-2" onclick="event.stopPropagation()">
-                            <input type="checkbox" id="chk-${obra.id}" class="img-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleCheckboxSelection('${obra.id}')">
-                        </div>
-                    </div>
-                    <div class="p-4 flex flex-col flex-1 min-w-0">
-                        <div class="flex justify-between items-start mb-1 gap-2">
-                            <h3 class="font-bold text-slate-800 text-sm sm:text-base truncate uppercase tracking-tight" title="${obra.nombre_obra}">${obra.nombre_obra || 'Sin Título'}</h3>
-                            <p class="font-bold text-slate-900 text-sm whitespace-nowrap">${precioFormatted}</p>
-                        </div>
-                        <p class="text-xs sm:text-sm text-slate-500 mb-2 truncate">${obra.autor || 'Artista Desconocido'}</p>
-                        
-                        <div class="text-[11px] sm:text-xs text-slate-600 space-y-1 mb-2 flex-1">
-                            <p class="truncate"><span class="font-medium text-slate-400">Técnica:</span> ${obra.tipo_obra || 'Óleo'}</p>
-                            <p class="truncate"><span class="font-medium text-slate-400">Medidas:</span> ${dimStr}</p>
-                        </div>
-
-                        <div class="flex justify-between items-end border-t border-slate-100 pt-2 mt-auto">
-                            <p class="text-[9px] sm:text-[10px] text-slate-400 uppercase tracking-wider">${obra.ubicacion || 'México'}</p>
-                            <button class="text-slate-300 hover:text-slate-800 transition-colors"><i class="far fa-bookmark text-sm"></i></button>
-                        </div>
-                    </div>
-                `;
-            } else {
-                card.innerHTML = `
-                    <div class="relative bg-slate-50 aspect-square flex items-center justify-center overflow-hidden cursor-pointer" onclick="toggleCardSelection('${obra.id}')">
-                        <img src="${imageUrl || fallbackSvg}" onerror="this.src='${fallbackSvg}'" class="w-full h-full object-contain p-4 transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" alt="${obra.nombre_obra}">
-                        <div class="absolute top-3 left-3" onclick="event.stopPropagation()">
-                            <input type="checkbox" id="chk-${obra.id}" class="img-checkbox" ${isSelected ? 'checked' : ''} onchange="toggleCheckboxSelection('${obra.id}')">
-                        </div>
-                    </div>
-                    <div class="p-4 flex flex-col flex-1">
-                        <h3 class="font-bold text-slate-800 text-sm mb-0.5 truncate uppercase tracking-tight">${obra.nombre_obra || 'Sin Título'}</h3>
-                        <p class="text-xs text-slate-500 mb-2 truncate">${obra.autor || 'Artista Desconocido'}</p>
-                        
-                        <div class="text-[11px] text-slate-600 space-y-1 mb-3 flex-1">
-                            <p class="truncate"><span class="font-medium text-slate-400">Técnica:</span> ${obra.tipo_obra || 'Óleo'}</p>
-                            <p class="truncate"><span class="font-medium text-slate-400">Medidas:</span> ${dimStr}</p>
-                        </div>
-
-                        <div class="flex justify-between items-end border-t border-slate-100 pt-3 mt-auto">
-                            <div>
-                                <p class="font-bold text-slate-900 text-sm leading-none">${precioFormatted}</p>
-                                <p class="text-[9px] text-slate-400 mt-1 uppercase tracking-wider">${obra.ubicacion || 'México'}</p>
-                            </div>
-                            <button class="text-slate-300 hover:text-slate-800 transition-colors"><i class="far fa-bookmark text-sm"></i></button>
-                        </div>
-                    </div>
-                `;
-            }
-            gridContainer.appendChild(card);
-        });
-    }
-
-    // --- COMPORTAMIENTO SELECCIÓN ---
-    function toggleCardSelection(id) {
-        const cb = document.getElementById(`chk-${id}`);
-        if (cb) {
-            cb.checked = !cb.checked;
-            toggleCheckboxSelection(id);
-        }
-    }
-
-    function toggleCheckboxSelection(id) {
-        if (selectedIds.has(id)) {
-            selectedIds.delete(id);
-        } else {
-            selectedIds.add(id);
-        }
-        
-        const cardElement = document.getElementById(`card-${id}`);
-        const checkboxElement = document.getElementById(`chk-${id}`);
-        const isNowSelected = selectedIds.has(id);
-
-        if (cardElement) {
-            if (isNowSelected) {
-                cardElement.classList.add('border-slate-800', 'ring-1', 'ring-slate-800', 'shadow-md');
-                cardElement.classList.remove('border-gray-200', 'hover:shadow-sm');
-            } else {
-                cardElement.classList.remove('border-slate-800', 'ring-1', 'ring-slate-800', 'shadow-md');
-                cardElement.classList.add('border-gray-200', 'hover:shadow-sm');
-            }
-        }
-
-        if (checkboxElement) {
-            checkboxElement.checked = isNowSelected;
-        }
-
-        updateSidebarSummary();
-    }
-
-    function clearSelection() {
-        selectedIds.clear();
-        updateSidebarSummary();
-        sortData(); 
-    }
-
-    function updateSidebarSummary() {
-        const total = selectedIds.size;
-        selectedCountText.innerText = `${total} obra${total !== 1 ? 's' : ''} seleccionada${total !== 1 ? 's' : ''}`;
-
-        const mobileBadge = document.getElementById('mobileSelectedBadge');
-        if(total > 0) {
-            mobileBadge.innerText = total;
-            mobileBadge.classList.remove('hidden');
-        } else {
-            mobileBadge.classList.add('hidden');
-        }
-
-        let totalEstimado = 0;
-        rawObras.forEach(o => {
-            if (selectedIds.has(o.id)) {
-                totalEstimado += parseFloat(o.precio_lista) || 0;
-            }
-        });
-
-        totalValueText.innerText = `$${totalEstimado.toLocaleString('en-US')} MXN`;
-    }
-
-    // --- SISTEMA DE ALMACENAMIENTO DE CATÁLOGOS LOCALES (LOCALSTORAGE) ---
-    function getSavedCatalogs() {
-        try {
-            const catalogs = localStorage.getItem('rtbrok_saved_catalogs');
-            return catalogs ? JSON.parse(catalogs) : [];
-        } catch (e) {
-            console.error("Error leyendo catálogos de localStorage", e);
-            return [];
-        }
-    }
-
-    function saveCatalogToLocal() {
-        if (selectedIds.size === 0) {
-            showToast("Selecciona al menos una obra antes de guardar el catálogo.", "error");
-            return;
-        }
-
-        const name = document.getElementById('pdfArtistName').value.trim() || "Catálogo sin título";
-        const subtitle = document.getElementById('pdfSubtitle').value.trim();
-        const updateText = document.getElementById('pdfUpdateText').value.trim();
-        const legalNote = document.getElementById('pdfLegalNote').value.trim();
-
-        const config = {
-            artistName: name,
-            subtitle: subtitle,
-            updateText: updateText,
-            legalNote: legalNote,
-            cfgPrices: document.getElementById('cfgPrices').checked,
-            cfgDims: document.getElementById('cfgDims').checked,
-            cfgLocation: document.getElementById('cfgLocation').checked,
-            cfgProveedor: document.getElementById('cfgProveedor').checked,
-            cfgFicha: document.getElementById('cfgFicha').checked,
-            cfgBiography: document.getElementById('cfgBiography').checked,
-        };
-
-        const newCatalog = {
-            id: 'cat_' + Date.now(),
-            title: name,
-            date: new Date().toLocaleString('es-MX', { hour12: true }),
-            selectedWorksCount: selectedIds.size,
-            selectedIds: Array.from(selectedIds),
-            config: config
-        };
-
-        const catalogs = getSavedCatalogs();
-        catalogs.unshift(newCatalog); 
-        localStorage.setItem('rtbrok_saved_catalogs', JSON.stringify(catalogs));
-
-        loadLocalCatalogs(); 
-        showToast(`Catálogo "${name}" guardado exitosamente.`, "success");
-    }
-
-    function deleteCatalog(id) {
-        let catalogs = getSavedCatalogs();
-        catalogs = catalogs.filter(c => c.id !== id);
-        localStorage.setItem('rtbrok_saved_catalogs', JSON.stringify(catalogs));
-        loadLocalCatalogs();
-        showToast("Catálogo eliminado.", "success");
-    }
-
-    function loadSavedCatalog(id) {
-        const catalogs = getSavedCatalogs();
-        const catalog = catalogs.find(c => c.id === id);
-        if (!catalog) {
-            showToast("No se pudo encontrar el catálogo seleccionado.", "error");
-            return;
-        }
-
-        selectedIds = new Set(catalog.selectedIds);
-
-        if (catalog.config) {
-            document.getElementById('pdfArtistName').value = catalog.config.artistName || '';
-            document.getElementById('pdfSubtitle').value = catalog.config.subtitle || '';
-            document.getElementById('pdfUpdateText').value = catalog.config.updateText || '';
-            document.getElementById('pdfLegalNote').value = catalog.config.legalNote || '';
-            
-            document.getElementById('cfgPrices').checked = catalog.config.cfgPrices;
-            document.getElementById('cfgDims').checked = catalog.config.cfgDims;
-            document.getElementById('cfgLocation').checked = catalog.config.cfgLocation;
-            document.getElementById('cfgProveedor').checked = catalog.config.cfgProveedor;
-            document.getElementById('cfgFicha').checked = catalog.config.cfgFicha;
-            document.getElementById('cfgBiography').checked = catalog.config.cfgBiography;
-        }
-
-        updateSidebarSummary();
-        hasAppliedInitialFilters = true; 
-        
-        filteredObras = rawObras;
-        sortData(); 
-        toggleLocalCatalogsPanel(); 
-        showToast(`Catálogo "${catalog.title}" cargado correctamente.`, "success");
-    }
-
-    function loadLocalCatalogs() {
-        const listContainer = document.getElementById('localCatalogsList');
-        const catalogs = getSavedCatalogs();
-
-        if (catalogs.length === 0) {
-            listContainer.innerHTML = `
-                <div class="text-center text-slate-500 py-6">
-                    <i class="fas fa-folder-open text-2xl mb-2 opacity-30"></i>
-                    <p>No tienes catálogos guardados localmente.</p>
-                </div>
-            `;
-            return;
-        }
-
-        listContainer.innerHTML = '';
-        catalogs.forEach(cat => {
-            const item = document.createElement('div');
-            item.className = "bg-slate-850 hover:bg-slate-800 p-2.5 rounded border border-slate-800 flex flex-col gap-1 transition-colors relative group";
-            
-            item.innerHTML = `
-                <div class="flex justify-between items-start pr-6">
-                    <span class="font-bold text-gray-200 truncate max-w-[180px]" title="${cat.title}">${cat.title}</span>
-                    <span class="text-[9px] bg-slate-750 text-slate-300 px-1.5 py-0.2 rounded-full font-semibold">${cat.selectedWorksCount} obras</span>
-                </div>
-                <span class="text-[9px] text-gray-400">${cat.date}</span>
-                <div class="flex gap-2 mt-1.5">
-                    <button onclick="loadSavedCatalog('${cat.id}')" class="text-[10px] text-blue-400 hover:text-blue-300 font-bold flex items-center gap-1">
-                        <i class="fas fa-folder-open"></i> Cargar
-                    </button>
-                    <span class="text-slate-700">|</span>
-                    <button onclick="deleteCatalog('${cat.id}')" class="text-[10px] text-red-400 hover:text-red-300 font-bold flex items-center gap-1">
-                        <i class="far fa-trash-alt"></i> Eliminar
-                    </button>
-                </div>
-            `;
-            listContainer.appendChild(item);
-        });
-    }
-
-    function toggleLocalCatalogsPanel() {
-        const panel = document.getElementById('localCatalogsPanel');
-        if (panel.classList.contains('hidden')) {
-            loadLocalCatalogs(); 
-            panel.classList.remove('hidden');
-        } else {
-            panel.classList.add('hidden');
-        }
-    }
-
-    // --- PROCESADOR PARA EVITAR PROBLEMAS CORS AL EXPORTAR A PDF ---
-    async function fetchImageAndConvertToBase64(url) {
-        if (!url) return null;
-        const finalUrl = convertGoogleDriveUrl(url);
-
-        try {
-            const response = await fetch(finalUrl);
-            if (!response.ok) throw new Error("Status HTTP " + response.status);
-            const blob = await response.blob();
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-        } catch (e) {
-            console.warn("Fallo de descarga por fetch, aplicando cargador nativo:", e);
-            return new Promise((resolve) => {
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = function() {
-                    const canvas = document.createElement('canvas');
-                    canvas.width = img.width;
-                    canvas.height = img.height;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(img, 0, 0);
-                    try {
-                        resolve(canvas.toDataURL('image/jpeg', 0.8));
-                    } catch (err) {
-                        resolve(null);
-                    }
-                };
-                img.onerror = () => resolve(null);
-                img.src = finalUrl;
-            });
-        }
-    }
-
-    function convertGoogleDriveUrl(url) {
-        if (!url) return null;
-        const fileIdMatch = url.match(/[-\w]{25,}/);
-        if (fileIdMatch) {
-            return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`;
-        }
-        return url;
-    }
-
-    // --- GENERACIÓN DEL PDF (RESPETANDO FORMATO RTBROK) ---
-    async function generateCatalogPDF() {
-        if (selectedIds.size === 0) {
-            showToast("Selecciona al menos una obra de la grilla central para el PDF.", "error");
-            return;
-        }
-
-        const loader = document.getElementById('loader');
-        const loaderText = document.getElementById('loaderText');
-        loader.classList.remove('hidden');
-
-        try {
-            const selectedWorks = rawObras.filter(o => selectedIds.has(o.id));
-            const processedArtworks = [];
-
-            for (let i = 0; i < selectedWorks.length; i++) {
-                const obra = selectedWorks[i];
-                loaderText.innerText = `Preparando imagen ${i + 1} de ${selectedWorks.length}...`;
-
-                let imgBase64 = null;
-                if (obra.adjuntos && obra.adjuntos.length > 0) {
-                    const directUrl = getFullLH3ImageUrl(obra.adjuntos);
-                    imgBase64 = await fetchImageAndConvertToBase64(directUrl);
-                }
-
-                const fallbackSvg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" fill="%23f8fafc"><rect width="100%" height="100%"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="%23cbd5e1" text-anchor="middle" dominant-baseline="middle">SIN IMAGEN DISPONIBLE</text></svg>';
-
-                const dimParts = [];
-                if (obra.ancho) dimParts.push(`${obra.ancho}`);
-                if (obra.alto) dimParts.push(`${obra.alto}`);
-                if (obra.largo) dimParts.push(`${obra.largo}`);
-                const dimStr = dimParts.length > 0 ? `${dimParts.join(' x ')} cm` : "";
-
-                const pVal = parseFloat(obra.precio_lista) || 0;
-                const priceStr = pVal > 0 ? `$${pVal.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : "";
-
-                const provObj = rawComisiones.find(c => c.id?.toString().trim() === (obra.provenance || "").toString().trim());
-                const realProv = provObj ? provObj.provenance : (obra.provenance || "");
-
-                processedArtworks.push({
-                    image: imgBase64 || fallbackSvg,
-                    title: (obra.nombre_obra || "SIN TÍTULO").toUpperCase(),
-                    artist: (obra.autor || "").toUpperCase(),
-                    medium: (obra.tipo_obra || "").toUpperCase(),
-                    dimensions: dimStr,
-                    price: priceStr,
-                    code: (obra.clave || ("CAT-" + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
-                    location: (obra.ubicacion || "").toUpperCase(),
-                    provider: realProv.toUpperCase()
-                });
-            }
-
-            loaderText.innerText = "Sintetizando archivo PDF...";
-
-            const config = {
-                artistName: document.getElementById('pdfArtistName').value.trim() || "CATÁLOGO",
-                subtitle: document.getElementById('pdfSubtitle').value.trim() || "OBRA SELECCIONADA",
-                updateText: document.getElementById('pdfUpdateText').value.trim(),
-                legalNote: document.getElementById('pdfLegalNote').value.trim(),
-                showPrices: document.getElementById('cfgPrices').checked,
-                showDims: document.getElementById('cfgDims').checked,
-                showLocation: document.getElementById('cfgLocation').checked,
-                showProveedor: document.getElementById('cfgProveedor').checked,
-                showFicha: document.getElementById('cfgFicha').checked
-            };
-
-            await buildAndSavePDF(processedArtworks, config);
-
-        } catch (err) {
-            console.error("Fallo general creando PDF:", err);
-            showToast("Ocurrió un error inesperado al generar el PDF.", "error");
-        } finally {
-            loader.classList.add('hidden');
-        }
-    }
-
-    async function buildAndSavePDF(artworks, cfg) {
-        const doc = new jsPDF('p', 'mm', 'a4');
-        const pageWidth = 210;
-        const pageHeight = 297;
-
-        let logoData = null;
-        try {
-            const res = await fetch(LOGO_PATH);
-            if (res.ok) {
-                const blob = await res.blob();
-                logoData = await new Promise(r => {
-                    const reader = new FileReader();
-                    reader.onload = () => r(reader.result);
-                    reader.readAsDataURL(blob);
-                });
-            }
-        } catch (e) {}
-
-        // --- HOJA 1: PORTADA ---
-        const titleY = 120;
-        if (logoData) {
-            doc.saveGraphicsState();
-            doc.setGState(new doc.GState({ opacity: 0.05 }));
-            doc.addImage(logoData, 'PNG', (pageWidth - 85) / 2, titleY - 60, 85, 85);
-            doc.restoreGraphicsState();
-        }
-
-        doc.setTextColor(20, 20, 20);
-        doc.setFont("times", "normal");
-        doc.setFontSize(28);
-        doc.text(cfg.artistName.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: "center" });
-
-        doc.setFontSize(10);
-        doc.text(cfg.subtitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: "center" });
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.text(cfg.updateText.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: "center" });
-
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(8);
-        doc.setTextColor(110);
-        const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
-        doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: "center" });
-
-        // --- HOJAS SECUNDARIAS (Una obra por hoja) ---
-        for (let i = 0; i < artworks.length; i++) {
-            doc.addPage();
-            const art = artworks[i];
-            const currentArtist = art.artist || cfg.artistName;
-            const margin = 25;
-
-            if (art.image && art.image.startsWith('data:')) {
-                try {
-                    const img = new Image();
-                    img.src = art.image;
-                    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
-
-                    const maxWidth = 160;
-                    const maxHeight = 165;
-                    const imgRatio = img.width / img.height;
-                    const boxRatio = maxWidth / maxHeight;
-
-                    let renderW, renderH;
-                    if (imgRatio > boxRatio) {
-                        renderW = maxWidth;
-                        renderH = maxWidth / imgRatio;
-                    } else {
-                        renderH = maxHeight;
-                        renderW = maxHeight * imgRatio;
-                    }
-
-                    const offsetX = margin + (maxWidth - renderW) / 2;
-                    const offsetY = 40 + (maxHeight - renderH) / 2;
-
-                    doc.addImage(art.image, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
-                } catch (err) {
-                    doc.setFillColor(245, 247, 250);
-                    doc.rect(margin, 40, 160, 150, 'F');
-                    doc.setTextColor(150);
-                    doc.setFont("helvetica", "normal");
-                    doc.setFontSize(10);
-                    doc.text("IMAGEN NO DISPONIBLE", pageWidth / 2, 115, { align: "center" });
-                }
-            }
-
-            doc.setTextColor(20, 20, 20);
-            doc.setFont("times", "bold");
-            doc.setFontSize(15);
-            doc.text(`"${art.title}"`, pageWidth - margin, 235, { align: "right" });
-
-            if (art.artist) {
-                doc.setFont("helvetica", "normal");
-                doc.setFontSize(9.5);
-                doc.setTextColor(110);
-                doc.text(art.artist, pageWidth - margin, 241, { align: "right" });
-            }
-
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(8.5);
-            doc.setTextColor(90);
-
-            let info = [];
-            if (cfg.showFicha && art.medium) info.push(art.medium);
-            if (cfg.showDims && art.dimensions) info.push(art.dimensions);
-            if (cfg.showPrices && art.price) info.push(art.price);
-            if (cfg.showLocation && art.location) info.push(art.location);
-            if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
-            if (art.code) info.push(art.code);
-
-            doc.text(info.join('   |   ').toUpperCase(), pageWidth - margin, 251, { align: "right" });
-
-            doc.setDrawColor(220, 225, 230);
-            doc.setLineWidth(0.15);
-            doc.line(margin, pageHeight - 20, pageWidth - margin, pageHeight - 20);
-
-            doc.setFontSize(5.5);
-            doc.setTextColor(170);
-            doc.setFont("helvetica", "bold");
-            doc.text(AVAILABILITY_TEXT, margin, pageHeight - 14);
-
-            const footerString = `${currentArtist.toUpperCase()}  •  ${cfg.updateText}  •  PÁGINA ${i + 1}`;
-            doc.text(footerString, pageWidth - margin, pageHeight - 14, { align: "right" });
-        }
-
-        doc.save(`CATALOGO_${cfg.artistName.replace(/\s+/g, '_')}.pdf`);
-    }
-    </script>
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/filters.js"></script>
+    <script src="js/catalogs.js"></script>
+    <script src="js/grid.js"></script>
+    <script src="js/pdf.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
