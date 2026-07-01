@@ -10,8 +10,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 
-    <!-- Estilos CSS -->
-    <link rel="stylesheet" href="css/styles.css">
+    <!-- Estilos CSS - Ruta relativa corregida -->
+    <link rel="stylesheet" href="./css/styles.css">
 </head>
 <body>
     <div class="app-container" id="app">
@@ -322,35 +322,35 @@
                                 <div class="config-toggle-item">
                                     <span class="text-xs text-slate-700 font-medium">Mostrar precios</span>
                                     <div class="toggle-wrapper">
-                                        <input type="checkbox" id="cfgPricesPanel" checked class="toggle-switch" />
+                                        <input type="checkbox" id="cfgPricesPanel" checked class="toggle-switch" onchange="syncConfigs()" />
                                         <label for="cfgPricesPanel" class="toggle-bg"></label>
                                     </div>
                                 </div>
                                 <div class="config-toggle-item">
                                     <span class="text-xs text-slate-700 font-medium">Mostrar dimensiones</span>
                                     <div class="toggle-wrapper">
-                                        <input type="checkbox" id="cfgDimsPanel" checked class="toggle-switch" />
+                                        <input type="checkbox" id="cfgDimsPanel" checked class="toggle-switch" onchange="syncConfigs()" />
                                         <label for="cfgDimsPanel" class="toggle-bg"></label>
                                     </div>
                                 </div>
                                 <div class="config-toggle-item">
                                     <span class="text-xs text-slate-700 font-medium">Mostrar ubicación</span>
                                     <div class="toggle-wrapper">
-                                        <input type="checkbox" id="cfgLocationPanel" checked class="toggle-switch" />
+                                        <input type="checkbox" id="cfgLocationPanel" checked class="toggle-switch" onchange="syncConfigs()" />
                                         <label for="cfgLocationPanel" class="toggle-bg"></label>
                                     </div>
                                 </div>
                                 <div class="config-toggle-item">
                                     <span class="text-xs text-slate-700 font-medium">Mostrar proveedor</span>
                                     <div class="toggle-wrapper">
-                                        <input type="checkbox" id="cfgProveedorPanel" class="toggle-switch" />
+                                        <input type="checkbox" id="cfgProveedorPanel" class="toggle-switch" onchange="syncConfigs()" />
                                         <label for="cfgProveedorPanel" class="toggle-bg"></label>
                                     </div>
                                 </div>
                                 <div class="config-toggle-item opacity-60">
                                     <span class="text-xs text-slate-700 font-medium">Ficha técnica completa</span>
                                     <div class="toggle-wrapper">
-                                        <input type="checkbox" id="cfgFichaPanel" checked class="toggle-switch" />
+                                        <input type="checkbox" id="cfgFichaPanel" checked class="toggle-switch" onchange="syncConfigs()" />
                                         <label for="cfgFichaPanel" class="toggle-bg"></label>
                                     </div>
                                 </div>
@@ -400,13 +400,13 @@
         </div>
     </div>
 
-    <!-- Scripts -->
-    <script src="js/config.js"></script>
-    <script src="js/api.js"></script>
-    <script src="js/filters.js"></script>
-    <script src="js/catalogs.js"></script>
-    <script src="js/grid.js"></script>
-    <script src="js/pdf.js"></script>
-    <script src="js/app.js"></script>
+    <!-- Scripts - Rutas relativas corregidas -->
+    <script src="./js/config.js"></script>
+    <script src="./js/api.js"></script>
+    <script src="./js/filters.js"></script>
+    <script src="./js/catalogs.js"></script>
+    <script src="./js/grid.js"></script>
+    <script src="./js/pdf.js"></script>
+    <script src="./js/app.js"></script>
 </body>
 </html>
