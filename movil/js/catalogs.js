@@ -30,12 +30,19 @@ async function createNewCatalog() {
     // Sincronizar paneles
     syncConfigs();
     updateSidebarSummary();
-    updateSaveButtonText();
+    
+    // Verificar que la función existe antes de llamarla
+    if (typeof updateSaveButtonText === 'function') {
+        updateSaveButtonText();
+    } else {
+        console.warn('updateSaveButtonText no está disponible');
+    }
     
     // Abrir filtros para seleccionar obras
     openFilters();
     showToast(`Nuevo catálogo "${trimmedName}" creado. Selecciona obras y guarda.`, 'success');
 }
+
 // Cargar lista de catálogos guardados
 async function loadLocalCatalogs() {
     const gridContainer = document.getElementById('catalogsGrid');
@@ -120,9 +127,11 @@ function toggleLocalCatalogsPanel() {
     }
 }
 
-// NUEVA FUNCIÓN: Resetear el estado de edición (para cuando se cierra un catálogo sin guardar)
+// Resetear el estado de edición
 function resetEditingState() {
     state.currentCatalogId = null;
     state.currentCatalogTitle = null;
-    // No resetear las selecciones para que el usuario pueda continuar
+    if (typeof updateSaveButtonText === 'function') {
+        updateSaveButtonText();
+    }
 }
