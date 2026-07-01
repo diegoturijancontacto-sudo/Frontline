@@ -1,5 +1,5 @@
 // ============================================
-// PDFVIEWER.JS - Visor de catálogos PDF
+// PDFVIEWER.JS - Visor de catálogos PDF (Mobile Optimized)
 // ============================================
 
 // Estado del visor
@@ -7,8 +7,15 @@ const viewerState = {
     currentCatalogId: null,
     pdfBlob: null,
     pdfUrl: null,
-    catalogs: []
+    catalogs: [],
+    isMobile: window.innerWidth < 640,
+    isOpen: false
 };
+
+// Detectar cambios de tamaño
+window.addEventListener('resize', () => {
+    viewerState.isMobile = window.innerWidth < 640;
+});
 
 // ============================================
 // ABRIR VISOR
@@ -17,6 +24,9 @@ const viewerState = {
 async function openPDFViewer() {
     const overlay = document.getElementById('pdfViewer');
     overlay.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Evitar scroll en el body
+    
+    viewerState.isOpen = true;
     
     // Cargar la lista de catálogos
     await loadCatalogsForViewer();
@@ -28,6 +38,12 @@ async function openPDFViewer() {
         // Si no hay catálogo activo, seleccionar el primero
         selectCatalogForViewer(viewerState.catalogs[0].id);
     }
+    
+    // Scroll al top de la lista en móvil
+    if (viewerState.isMobile) {
+        const list = document.getElementById('pdfCatalogList');
+        if (list) list.scrollTop = 0;
+    }
 }
 
 // ============================================
@@ -37,16 +53,21 @@ async function openPDFViewer() {
 function closePDFViewer() {
     const overlay = document.getElementById('pdfViewer');
     overlay.classList.add('hidden');
+    document.body.style.overflow = '';
+    
+    viewerState.isOpen = false;
     
     // Limpiar el iframe
     const frame = document.getElementById('pdfViewerFrame');
-    frame.innerHTML = `
-        <div class="pdf-placeholder">
-            <i class="fas fa-file-pdf text-6xl text-slate-300 mb-4"></i>
-            <p class="text-slate-500">Selecciona un catálogo de la lista para visualizarlo</p>
-            <p class="text-slate-400 text-sm mt-2">o genera uno nuevo desde la sección principal</p>
-        </div>
-    `;
+    if (frame) {
+        frame.innerHTML = `
+            <div class="pdf-placeholder">
+                <i class="fas fa-file-pdf text-6xl text-slate-300 mb-4"></i>
+                <p class="text-slate-500">Selecciona un catálogo de la lista para visualizarlo</p>
+                <p class="text-slate-400 text-sm mt-2">o genera uno nuevo desde la sección principal</p>
+            </div>
+        `;
+    }
     
     // Liberar URL del blob
     if (viewerState.pdfUrl) {
@@ -63,14 +84,18 @@ function closePDFViewer() {
 async function loadCatalogsForViewer() {
     try {
         const catalogs = await getSavedCatalogs();
-        viewerState.catalogs = catalogs;
+        viewerState.catalogs = catalogs || [];
         
         const listContainer = document.getElementById('pdfCatalogList');
         const countSpan = document.getElementById('pdfCatalogCount');
         
-        countSpan.textContent = catalogs.length;
+        if (countSpan) {
+            countSpan.textContent = viewerState.catalogs.length;
+        }
         
-        if (catalogs.length === 0) {
+        if (!listContainer) return;
+        
+        if (viewerState.catalogs.length === 0) {
             listContainer.innerHTML = `
                 <div class="text-center text-slate-400 py-8 px-4">
                     <i class="fas fa-folder-open text-3xl mb-2 opacity-30"></i>
@@ -82,7 +107,7 @@ async function loadCatalogsForViewer() {
         }
         
         listContainer.innerHTML = '';
-        catalogs.forEach(cat => {
+        viewerState.catalogs.forEach(cat => {
             const item = document.createElement('div');
             item.className = 'pdf-catalog-item';
             if (viewerState.currentCatalogId === cat.id) {
@@ -90,27 +115,55 @@ async function loadCatalogsForViewer() {
             }
             item.dataset.id = cat.id;
             
+            // Truncar título largo para móvil
+            const displayTitle = cat.title.length > 25 ? cat.title.substring(0, 22) + '...' : cat.title;
+            
             item.innerHTML = `
-                <span class="pdf-catalog-title">${cat.title}</span>
-                <span class="pdf-catalog-date">${cat.date}</span>
+                <div class="pdf-catalog-info">
+                    <span class="pdf-catalog-title">${displayTitle}</span>
+                    <span class="pdf-catalog-date">${cat.date}</span>
+                </div>
                 <span class="pdf-catalog-count">${cat.selectedWorksCount} obras</span>
             `;
             
-            item.addEventListener('click', () => {
+            // Usar touch y click para mejor compatibilidad móvil
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                selectCatalogForViewer(cat.id);
+            });
+            
+            // Soporte para touch en móviles
+            item.addEventListener('touchend', (e) => {
+                // Prevenir doble acción
+                if (!e.target.closest('.pdf-catalog-item')) return;
                 selectCatalogForViewer(cat.id);
             });
             
             listContainer.appendChild(item);
         });
         
+        // Si hay un catálogo seleccionado, asegurar que esté visible
+        if (viewerState.currentCatalogId) {
+            const activeItem = listContainer.querySelector(`[data-id="${viewerState.currentCatalogId}"]`);
+            if (activeItem && viewerState.isMobile) {
+                activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+        
     } catch (error) {
         console.error('Error al cargar catálogos para el visor:', error);
-        document.getElementById('pdfCatalogList').innerHTML = `
-            <div class="text-center text-red-400 py-8 px-4">
-                <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
-                <p class="text-sm">Error al cargar catálogos</p>
-            </div>
-        `;
+        const listContainer = document.getElementById('pdfCatalogList');
+        if (listContainer) {
+            listContainer.innerHTML = `
+                <div class="text-center text-red-400 py-8 px-4">
+                    <i class="fas fa-exclamation-triangle text-3xl mb-2"></i>
+                    <p class="text-sm">Error al cargar catálogos</p>
+                    <button onclick="loadCatalogsForViewer()" class="mt-3 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">
+                        <i class="fas fa-sync mr-1"></i> Reintentar
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -122,19 +175,31 @@ async function selectCatalogForViewer(catalogId) {
     // Actualizar estado
     viewerState.currentCatalogId = catalogId;
     
-    // Actualizar UI
+    // Actualizar UI - resaltar elemento seleccionado
     document.querySelectorAll('.pdf-catalog-item').forEach(el => {
         el.classList.toggle('active', el.dataset.id === catalogId);
     });
     
+    // En móvil, hacer scroll al elemento seleccionado
+    if (viewerState.isMobile) {
+        const activeItem = document.querySelector(`.pdf-catalog-item.active`);
+        if (activeItem) {
+            setTimeout(() => {
+                activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 100);
+        }
+    }
+    
     // Mostrar loading
     const frame = document.getElementById('pdfViewerFrame');
-    frame.innerHTML = `
-        <div class="pdf-loading">
-            <div class="spinner"></div>
-            <p>Generando catálogo...</p>
-        </div>
-    `;
+    if (frame) {
+        frame.innerHTML = `
+            <div class="pdf-loading">
+                <div class="spinner"></div>
+                <p>Generando catálogo...</p>
+            </div>
+        `;
+    }
     
     try {
         // Obtener el catálogo
@@ -148,20 +213,30 @@ async function selectCatalogForViewer(catalogId) {
         const catalog = result.data;
         
         // Actualizar título
-        document.getElementById('pdfViewerTitle').textContent = `📄 ${catalog.title}`;
+        const titleEl = document.getElementById('pdfViewerTitle');
+        if (titleEl) {
+            const displayTitle = catalog.title.length > 30 ? catalog.title.substring(0, 27) + '...' : catalog.title;
+            titleEl.textContent = `📄 ${displayTitle}`;
+        }
         
         // Generar el PDF
         await generateAndDisplayPDF(catalog);
         
     } catch (error) {
         console.error('Error al generar PDF:', error);
-        frame.innerHTML = `
-            <div class="text-center text-red-500 p-8">
-                <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
-                <p class="font-medium">Error al generar el PDF</p>
-                <p class="text-sm text-slate-500 mt-1">${error.message}</p>
-            </div>
-        `;
+        const frame = document.getElementById('pdfViewerFrame');
+        if (frame) {
+            frame.innerHTML = `
+                <div class="text-center text-red-500 p-8">
+                    <i class="fas fa-exclamation-circle text-4xl mb-3"></i>
+                    <p class="font-medium">Error al generar el PDF</p>
+                    <p class="text-sm text-slate-500 mt-1">${error.message || 'Intenta de nuevo'}</p>
+                    <button onclick="selectCatalogForViewer('${catalogId}')" class="mt-3 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm">
+                        <i class="fas fa-sync mr-1"></i> Reintentar
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
@@ -175,20 +250,45 @@ async function generateAndDisplayPDF(catalog) {
     
     if (selectedWorks.length === 0) {
         const frame = document.getElementById('pdfViewerFrame');
-        frame.innerHTML = `
-            <div class="text-center text-slate-500 p-8">
-                <i class="fas fa-info-circle text-4xl mb-3 opacity-30"></i>
-                <p class="font-medium">Este catálogo no tiene obras seleccionadas</p>
-                <p class="text-sm mt-1">Edita el catálogo para agregar obras</p>
-            </div>
-        `;
+        if (frame) {
+            frame.innerHTML = `
+                <div class="text-center text-slate-500 p-8">
+                    <i class="fas fa-info-circle text-4xl mb-3 opacity-30"></i>
+                    <p class="font-medium">Este catálogo no tiene obras seleccionadas</p>
+                    <p class="text-sm mt-1">Edita el catálogo para agregar obras</p>
+                </div>
+            `;
+        }
         return;
     }
     
     // Procesar las obras para el PDF
     const processedArtworks = [];
     
-    for (const obra of selectedWorks) {
+    // Mostrar progreso en móvil
+    const frame = document.getElementById('pdfViewerFrame');
+    if (frame) {
+        frame.innerHTML = `
+            <div class="pdf-loading">
+                <div class="spinner"></div>
+                <p>Preparando ${selectedWorks.length} obras...</p>
+            </div>
+        `;
+    }
+    
+    for (let i = 0; i < selectedWorks.length; i++) {
+        const obra = selectedWorks[i];
+        
+        // Actualizar progreso cada 3 obras
+        if (i % 3 === 0 && frame) {
+            frame.innerHTML = `
+                <div class="pdf-loading">
+                    <div class="spinner"></div>
+                    <p>Procesando obra ${i + 1} de ${selectedWorks.length}...</p>
+                </div>
+            `;
+        }
+        
         let imgBase64 = null;
         if (obra.adjuntos && obra.adjuntos.length > 0) {
             const directUrl = getFullLH3ImageUrl(obra.adjuntos);
@@ -236,6 +336,16 @@ async function generateAndDisplayPDF(catalog) {
         layout: state.currentPageLayout || 1
     };
     
+    // Mostrar loading final
+    if (frame) {
+        frame.innerHTML = `
+            <div class="pdf-loading">
+                <div class="spinner"></div>
+                <p>Generando PDF...</p>
+            </div>
+        `;
+    }
+    
     // Generar el PDF como blob
     const pdfBlob = await generatePDFBlob(processedArtworks, config);
     
@@ -247,14 +357,15 @@ async function generateAndDisplayPDF(catalog) {
     viewerState.pdfUrl = URL.createObjectURL(pdfBlob);
     
     // Mostrar en el iframe
-    const frame = document.getElementById('pdfViewerFrame');
-    frame.innerHTML = `
-        <iframe src="${viewerState.pdfUrl}" type="application/pdf"></iframe>
-    `;
+    if (frame) {
+        frame.innerHTML = `
+            <iframe src="${viewerState.pdfUrl}" type="application/pdf"></iframe>
+        `;
+    }
 }
 
 // ============================================
-// GENERAR PDF COMO BLOB
+// GENERAR PDF COMO BLOB (Versión optimizada)
 // ============================================
 
 async function generatePDFBlob(artworks, cfg) {
@@ -283,7 +394,7 @@ async function generatePDFBlob(artworks, cfg) {
         console.warn('No se pudo cargar el logo:', e);
     }
 
-    // Portada
+    // Portada (simplificada para móvil)
     const titleY = 120;
     if (logoData) {
         doc.saveGraphicsState();
@@ -311,7 +422,7 @@ async function generatePDFBlob(artworks, cfg) {
     doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: 'center' });
 
     // Hojas de obras
-    const obrasPorHoja = cfg.layout || 1;
+    const obrasPorHoja = Math.min(cfg.layout || 1, 4);
 
     for (let i = 0; i < artworks.length; i += obrasPorHoja) {
         doc.addPage();
@@ -415,7 +526,6 @@ async function generatePDFBlob(artworks, cfg) {
         doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
     }
 
-    // Devolver como blob
     return doc.output('blob');
 }
 
@@ -447,13 +557,23 @@ function downloadCurrentPDF() {
 
 function printCurrentPDF() {
     if (viewerState.pdfUrl) {
-        const iframe = document.querySelector('#pdfViewerFrame iframe');
-        if (iframe) {
-            try {
-                iframe.contentWindow.print();
-            } catch (e) {
-                // Si no se puede imprimir desde el iframe, abrir en nueva ventana
-                window.open(viewerState.pdfUrl, '_blank');
+        // Abrir en nueva ventana para impresión
+        const win = window.open(viewerState.pdfUrl, '_blank');
+        if (win) {
+            win.onload = function() {
+                setTimeout(() => {
+                    win.print();
+                }, 500);
+            };
+        } else {
+            // Si no se pudo abrir, intentar con el iframe
+            const iframe = document.querySelector('#pdfViewerFrame iframe');
+            if (iframe) {
+                try {
+                    iframe.contentWindow.print();
+                } catch (e) {
+                    showToast('Abre el PDF en una nueva ventana para imprimir.', 'info');
+                }
             }
         }
     } else {
