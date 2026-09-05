@@ -47,21 +47,15 @@ function updateSaveButtonText() {
 window.updateSaveButtonText = updateSaveButtonText;
 
 // ============================================
-// CONTROL DEL FOOTER
+// COMPATIBILIDAD CON LA BARRA DE ACCIONES DEL EDITOR
 // ============================================
 
 function showFooter() {
-    const footer = document.getElementById('mainFooter');
-    if (footer) {
-        footer.style.display = 'flex';
-    }
+    // Las acciones del catálogo ahora viven en la cabecera de RESULTADOS.
 }
 
 function hideFooter() {
-    const footer = document.getElementById('mainFooter');
-    if (footer) {
-        footer.style.display = 'none';
-    }
+    // Se conserva la función para llamadas existentes durante la navegación.
 }
 
 // Exponerlas globalmente
@@ -82,7 +76,7 @@ function goHome() {
     closeAllSidebars();
     document.getElementById('filterPanel').classList.remove('active');
 
-    // OCULTAR EL FOOTER EN LA PANTALLA DE INICIO
+    // La barra de acciones se oculta junto con el panel de resultados.
     hideFooter();
 }
 
@@ -93,7 +87,7 @@ function openFilters() {
     document.getElementById('resultsPanel').classList.add('hidden');
     document.getElementById('pageTitle').textContent = 'Filtros';
 
-    // MOSTRAR EL FOOTER EN FILTROS
+    // Compatibilidad con el flujo de navegación existente.
     showFooter();
 }
 
@@ -108,7 +102,7 @@ function closeFilterPanel() {
         document.getElementById('searchContainer').classList.remove('hidden');
         document.getElementById('btnConfigCatalogo').classList.remove('hidden');
 
-        // MOSTRAR EL FOOTER EN RESULTADOS
+        // Compatibilidad con el flujo de navegación existente.
         showFooter();
     }
 }

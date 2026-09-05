@@ -38,10 +38,6 @@
 
             <!-- Controles -->
             <div class="flex items-center gap-3 sm:gap-6 text-sm">
-                <button onclick="openPDFViewer()" class="text-slate-600 hover:text-slate-900 px-2" title="Visor de PDF">
-                    <i class="fas fa-eye text-sm sm:text-base"></i>
-                </button>
-
                 <button id="btnConfigCatalogo" onclick="toggleConfigPanel()" class="text-slate-600 hover:text-slate-900 items-center gap-2 hidden sm:flex">
                     <i class="fas fa-cog"></i> Configurar
                 </button>
@@ -226,12 +222,25 @@
                             <h2 class="font-bold text-base text-slate-800 tracking-wide">RESULTADOS</h2>
                             <span id="resultsCount" class="bg-slate-800 text-white text-[11px] px-2.5 py-0.5 rounded-full font-medium">0 obras</span>
                         </div>
-                        <div class="flex items-center gap-2 flex-wrap">
-                            <button onclick="selectAllWorks()" class="select-all-btn">
-                                <i class="fas fa-check-double mr-1"></i> Seleccionar todo
+                        <div class="results-toolbar" aria-label="Acciones del catálogo">
+                            <button onclick="generateCatalogPDF()" class="results-toolbar-btn results-toolbar-btn-primary" title="Generar PDF">
+                                <i class="fas fa-file-pdf"></i><span>PDF</span>
                             </button>
-                            <button onclick="deselectAllWorks()" class="select-all-btn">
-                                <i class="fas fa-times mr-1"></i> Deseleccionar
+                            <button onclick="openPDFViewer()" class="results-toolbar-btn" title="Ver catálogos">
+                                <i class="fas fa-eye"></i><span>Ver</span>
+                            </button>
+                            <button id="btnSaveCatalog" onclick="saveCatalogToLocal()" class="results-toolbar-btn" title="Guardar catálogo">
+                                <i class="fas fa-save"></i><span id="saveButtonText">Guardar</span>
+                            </button>
+                            <button onclick="toggleLocalCatalogsPanel()" class="results-toolbar-btn" title="Historial de catálogos guardados">
+                                <i class="fas fa-history"></i><span>Historial</span>
+                            </button>
+                            <span class="results-toolbar-divider" aria-hidden="true"></span>
+                            <button onclick="selectAllWorks()" class="results-toolbar-btn" title="Seleccionar todo">
+                                <i class="fas fa-check-double"></i><span>Seleccionar</span>
+                            </button>
+                            <button onclick="deselectAllWorks()" class="results-toolbar-btn" title="Deseleccionar todo">
+                                <i class="fas fa-times"></i><span>Deseleccionar</span>
                             </button>
                         </div>
                     </div>
@@ -379,27 +388,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- FOOTER -->
-        <footer id="mainFooter" class="app-footer">
-            <button onclick="generateCatalogPDF()" class="btn-pdf">
-                <i class="fas fa-file-pdf text-sm sm:text-base"></i> <span class="hidden sm:inline">GENERAR </span>PDF
-            </button>
-            <div class="footer-divider"></div>
-            <button onclick="openPDFViewer()" class="btn-footer">
-                <i class="fas fa-eye text-sm sm:text-base"></i> <span class="hidden sm:inline">VER CATÁLOGOS</span>
-                <span class="sm:hidden">VER</span>
-            </button>
-            <div class="footer-divider"></div>
-            <button id="btnSaveCatalog" onclick="saveCatalogToLocal()" class="btn-footer">
-                <i class="fas fa-save text-sm sm:text-base"></i> <span id="saveButtonText" class="hidden sm:inline">GUARDAR CATÁLOGO</span>
-                <span id="saveButtonTextMobile" class="sm:hidden">GUARDAR</span>
-            </button>
-            <div class="footer-divider"></div>
-            <button onclick="toggleLocalCatalogsPanel()" class="btn-footer">
-                <i class="fas fa-history text-sm sm:text-base"></i> HISTORIAL<span class="hidden sm:inline"> (GUARDADOS)</span>
-            </button>
-        </footer>
 
         <!-- ========================================== -->
         <!-- VISOR DE PDF - VERSIÓN MEJORADA PARA MÓVIL -->
