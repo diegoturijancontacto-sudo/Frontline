@@ -2,17 +2,6 @@
 // FILTERS.JS - Lógica de filtros
 // ============================================
 
-// Tabla de mapeo de categorías a tags (para filtrado flexible)
-const CATEGORY_TAG_MAP = {
-    '#Pintura': ['#pintura', 'pintura', 'oleo', 'acrilico', 'acuarela', 'temple', 'encáustica', 'pintura'],
-    '#Escultura': ['#escultura', 'escultura', 'bronce', 'marmol', 'madera', 'ceramica', 'barro', 'escultura'],
-    '#Gráfica': ['#gráfica', '#grafica', 'grafica', 'litografia', 'serigrafia', 'grabado', 'aguafuerte', 'xilografia'],
-    '#Fotografía': ['#fotografía', '#fotografia', 'fotografia', 'photo', 'foto', 'imagen', 'fotográfico'],
-    '#Arte Digital': ['#artedigital', 'arte digital', 'digital', '3d', 'render', 'diseño digital', 'digital art'],
-    '#Instalación': ['#instalación', '#instalacion', 'instalacion', 'installation', 'instalación', 'arte instalación'],
-    'Objeto': ['objeto', 'objetoarte', 'objeto artístico', 'ensamblaje', 'collage objeto', 'objeto']
-};
-
 // Construir filtros dinámicos
 function buildDynamicFilters() {
     const autorCounts = {};
@@ -147,20 +136,7 @@ function applyFilters() {
             if (selectSize === 'X' && sizeAvg < 200) return false;
         }
 
-        // ===== FILTRO DE CATEGORÍA MEJORADO CON TABLA DE MAPEO =====
-        if (selectCategoria) {
-            // Obtener los tags permitidos para esta categoría
-            const allowedTags = CATEGORY_TAG_MAP[selectCategoria] || [selectCategoria.toLowerCase()];
-            
-            // Verificar si algún tag de la obra coincide con los permitidos
-            const hasCategoryTag = oTagsLower.some(tag => 
-                allowedTags.some(allowedTag => tag.includes(allowedTag))
-            );
-            
-            if (!hasCategoryTag) return false;
-        }
-        // ===== FIN FILTRO DE CATEGORÍA =====
-
+        if (selectCategoria && !oTagsLower.includes(selectCategoria.toLowerCase())) return false;
         if (checkCertificado && !oTagsLower.includes('#certificado')) return false;
 
         return true;
