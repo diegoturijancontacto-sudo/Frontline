@@ -139,17 +139,31 @@ async function generatePDFBlob(artworks, cfg) {
             }
         }
 
+        // --- TÍTULO PRINCIPAL ---
         const infoX = pageWidth - 20;
         const titleLines = doc.splitTextToSize(art.title || 'SIN TÍTULO', 175);
-        const titleY = titleLines.length > 1 ? 274 : 278;
+        const titleY = titleLines.length > 1 ? 272 : 276; // Ajustado por el interlineado ampliado
 
         doc.setTextColor(20, 20, 20);
         doc.setFont('times', 'bold');
-        doc.setFontSize(17);
+        doc.setFontSize(19); // +2pt respecto al original (17 -> 19)
         doc.text(titleLines.slice(0, 2), infoX, titleY, { align: 'right' });
 
+        // --- SUBTÍTULO: AUTOR ---
+        // Interlineado aumentado 50% respecto al valor reducido (4 -> 6  /  6.5 -> 9.75)
+        let subtitleY = titleY + (titleLines.length > 1 ? 9.75 : 6);
+        if (art.artist) {
+            doc.setFont('times', 'italic');
+            doc.setFontSize(11);
+            doc.setTextColor(80, 80, 80);
+            doc.text(art.artist.toUpperCase(), infoX, subtitleY, { align: 'right' });
+            subtitleY += 4.5; // Antes 3, ahora 4.5 (+50%)
+        } else {
+            subtitleY += 1.5; // Antes 1, ahora 1.5 (+50%)
+        }
+
+        // --- INFORMACIÓN TÉCNICA (sin el autor, que ya está en subtítulo) ---
         const info = [];
-        if (art.artist) info.push(art.artist);
         if (cfg.showDims && art.dimensions) info.push(art.dimensions);
         if (cfg.showFicha && art.medium) info.push(art.medium);
         if (cfg.showPrices && art.price) info.push(art.price);
@@ -163,7 +177,7 @@ async function generatePDFBlob(artworks, cfg) {
             doc.setFontSize(8);
             doc.setTextColor(105, 105, 105);
             const infoLines = doc.splitTextToSize(infoText, 175).slice(0, 2);
-            doc.text(infoLines, infoX, titleY + (titleLines.length > 1 ? 13 : 8), { align: 'right' });
+            doc.text(infoLines, infoX, subtitleY, { align: 'right' });
         }
 
         const footerY = 288;
