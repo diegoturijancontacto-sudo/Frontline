@@ -139,9 +139,9 @@ async function generatePDFBlob(artworks, cfg) {
             }
         }
 
-        const infoX = pageWidth - 18;
+        const infoX = pageWidth - 20;
         const titleLines = doc.splitTextToSize(art.title || 'SIN TÍTULO', 175);
-        const titleY = titleLines.length > 1 ? 267 : 271;
+        const titleY = titleLines.length > 1 ? 274 : 278;
 
         doc.setTextColor(20, 20, 20);
         doc.setFont('times', 'bold');
@@ -169,16 +169,25 @@ async function generatePDFBlob(artworks, cfg) {
         const footerY = 288;
         const pageNum = i + 1;
         const totalPages = artworks.length;
+
+        // Extremos de la línea
+        const lineX1 = 20;
+        const lineX2 = pageWidth - 20;   // = 190
+        const lineCenter = (lineX1 + lineX2) / 2;  // = 105 (que casualmente es pageWidth/2)
+
+        // Línea
         doc.setDrawColor(70, 70, 70);
         doc.setLineWidth(0.25);
-        doc.line(5, footerY, pageWidth - 5, footerY);
+        doc.line(lineX1, footerY, lineX2, footerY);
 
+        // Textos alineados con la línea
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(6.5);
         doc.setTextColor(90, 90, 90);
-        doc.text((cfg.artistName || '').toUpperCase(), 5, footerY + 5, { align: 'left' });
-        doc.text((cfg.updateText || '').toUpperCase(), pageWidth / 2, footerY + 5, { align: 'center' });
-        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, pageWidth - 5, footerY + 5, { align: 'right' });
+
+        doc.text((cfg.artistName || '').toUpperCase(), lineX1, footerY + 5, { align: 'left' });
+        doc.text((cfg.updateText || '').toUpperCase(), lineCenter, footerY + 5, { align: 'center' });
+        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, lineX2, footerY + 5, { align: 'right' });
     }
 
     return doc.output('blob');
