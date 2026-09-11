@@ -1,240 +1,287 @@
 // ============================================
-// APP.JS - Inicialización y navegación
+// PDF.JS - Generación de PDF
 // ============================================
 
-// ============================================
-// TOAST
-// ============================================
-function showToast(message, type = 'info') {
-    const toast = document.getElementById('customToast');
-    const msgSpan = document.getElementById('toastMessage');
-    const iconSpan = document.getElementById('toastIcon');
+// Inicializar jsPDF correctamente
+// La librería se carga desde CDN: https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js
 
-    msgSpan.innerText = message;
-    if (type === 'success') {
-        iconSpan.innerHTML = '<i class="fas fa-check-circle text-emerald-400 text-sm"></i>';
-    } else if (type === 'error') {
-        iconSpan.innerHTML = '<i class="fas fa-exclamation-circle text-red-400 text-sm"></i>';
-    } else {
-        iconSpan.innerHTML = '<i class="fas fa-info-circle text-blue-400 text-sm"></i>';
-    }
+// Procesador de imágenes
+async function fetchImageAndConvertToBase64(url) {
+    if (!url) return null;
+    const finalUrl = convertGoogleDriveUrl(url);
 
-    toast.classList.add('show');
-    clearTimeout(window.toastTimeout);
-    window.toastTimeout = setTimeout(() => {
-        toast.classList.remove('show');
-    }, 4000);
-}
-
-// ============================================
-// FUNCIONES GLOBALES
-// ============================================
-
-// Función para actualizar el texto del botón de guardar
-function updateSaveButtonText() {
-    const btnText = document.getElementById('saveButtonText');
-    const btnTextMobile = document.getElementById('saveButtonTextMobile');
-    if (state.currentCatalogId !== null) {
-        if (btnText) btnText.textContent = 'ACTUALIZAR CATÁLOGO';
-        if (btnTextMobile) btnTextMobile.textContent = 'ACTUALIZAR';
-    } else {
-        if (btnText) btnText.textContent = 'GUARDAR CATÁLOGO';
-        if (btnTextMobile) btnTextMobile.textContent = 'GUARDAR';
-    }
-}
-
-// Exponer la función globalmente
-window.updateSaveButtonText = updateSaveButtonText;
-
-// ============================================
-// COMPATIBILIDAD CON LA BARRA DE ACCIONES DEL EDITOR
-// ============================================
-
-function showFooter() {
-    // Las acciones del catálogo ahora viven en la cabecera de RESULTADOS.
-}
-
-function hideFooter() {
-    // Se conserva la función para llamadas existentes durante la navegación.
-}
-
-// Exponerlas globalmente
-window.showFooter = showFooter;
-window.hideFooter = hideFooter;
-
-// ============================================
-// NAVEGACIÓN
-// ============================================
-
-function goHome() {
-    document.getElementById('homeScreen').classList.remove('hidden');
-    document.getElementById('homeScreen').style.display = 'flex';
-    document.getElementById('resultsPanel').classList.add('hidden');
-    document.getElementById('searchContainer').classList.add('hidden');
-    document.getElementById('pageTitle').textContent = 'Inicio';
-    document.getElementById('btnConfigCatalogo').classList.add('hidden');
-    closeAllSidebars();
-    document.getElementById('filterPanel').classList.remove('active');
-
-    // La barra de acciones se oculta junto con el panel de resultados.
-    hideFooter();
-}
-
-function openFilters() {
-    document.getElementById('filterPanel').classList.add('active');
-    document.getElementById('homeScreen').style.display = 'none';
-    document.getElementById('homeScreen').classList.add('hidden');
-    document.getElementById('resultsPanel').classList.add('hidden');
-    document.getElementById('pageTitle').textContent = 'Filtros';
-
-    // Compatibilidad con el flujo de navegación existente.
-    showFooter();
-}
-
-function closeFilterPanel() {
-    document.getElementById('filterPanel').classList.remove('active');
-    if (state.filteredObras.length === 0 && !state.hasAppliedInitialFilters) {
-        goHome();
-    } else {
-        document.getElementById('resultsPanel').classList.remove('hidden');
-        const title = state.currentCatalogTitle || 'Resultados';
-        document.getElementById('pageTitle').textContent = title;
-        document.getElementById('searchContainer').classList.remove('hidden');
-        document.getElementById('btnConfigCatalogo').classList.remove('hidden');
-
-        // Compatibilidad con el flujo de navegación existente.
-        showFooter();
-    }
-}
-
-function applyFiltersAndClose() {
-    applyFilters();
-    closeFilterPanel();
-}
-
-function toggleConfigPanel() {
-    const panel = document.getElementById('configPanel');
-    panel.classList.toggle('hidden');
-}
-
-function closeConfigPanel() {
-    document.getElementById('configPanel').classList.add('hidden');
-}
-
-function closeAllSidebars() {
-    document.getElementById('configPanel').classList.add('hidden');
-    document.getElementById('localCatalogsPanel').classList.add('hidden');
-}
-
-// ============================================
-// INICIALIZACIÓN
-// ============================================
-
-document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Cargar datos
-        await fetchSheetsDatabase();
-        await loadLocalCatalogs();
-        goHome();
-
-        // Agregar listeners para los checkboxes del panel de configuración
-        const panelCheckboxes = ['cfgPricesPanel', 'cfgDimsPanel', 'cfgLocationPanel', 'cfgProveedorPanel', 'cfgFichaPanel'];
-        panelCheckboxes.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.addEventListener('change', function () {
-                    const mainId = id.replace('Panel', '');
-                    const mainEl = document.getElementById(mainId);
-                    if (mainEl) {
-                        mainEl.checked = this.checked;
-                    }
-                });
-            }
+        const response = await fetch(finalUrl);
+        if (!response.ok) throw new Error('Status HTTP ' + response.status);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
         });
+    } catch (e) {
+        console.warn('Fallo de descarga por fetch, aplicando cargador nativo:', e);
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = function () {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                try {
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                } catch (err) {
+                    resolve(null);
+                }
+            };
+            img.onerror = () => resolve(null);
+            img.src = finalUrl;
+        });
+    }
+}
 
-        // Ocultar el footer inicialmente (en la pantalla de inicio)
-        hideFooter();
+function convertGoogleDriveUrl(url) {
+    if (!url) return null;
+    const fileIdMatch = url.match(/[-\w]{25,}/);
+    if (fileIdMatch) {
+        return `https://lh3.googleusercontent.com/d/${fileIdMatch[0]}`;
+    }
+    return url;
+}
 
-        // Cargar catálogos para el visor (solo si la función existe)
-        if (typeof loadCatalogsForViewer === 'function') {
-            await loadCatalogsForViewer();
-            console.log('Visor de PDF cargado correctamente');
-        } else {
-            console.warn('loadCatalogsForViewer no está disponible. Verifica que pdfViewer.js esté cargado.');
+// Generar PDF como Blob (para el visor)
+async function generatePDFBlob(artworks, cfg) {
+    // Verificar que jsPDF está disponible
+    const PDFLib = getJSPDF();
+    if (!PDFLib) {
+        throw new Error('No se pudo cargar la librería jsPDF');
+    }
+
+    const doc = new PDFLib('p', 'mm', 'a4');
+    const pageWidth = 210;
+    const pageHeight = 297;
+
+    let logoData = null;
+    try {
+        const res = await fetch(LOGO_PATH);
+        if (res.ok) {
+            const blob = await res.blob();
+            logoData = await new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = () => r(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+    } catch (e) {
+        console.warn('No se pudo cargar el logo:', e);
+    }
+
+    // Portada
+    const titleY = 120;
+    if (logoData) {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.05 }));
+        doc.addImage(logoData, 'PNG', (pageWidth - 85) / 2, titleY - 60, 85, 85);
+        doc.restoreGraphicsState();
+    }
+
+    doc.setTextColor(20, 20, 20);
+    doc.setFont('times', 'normal');
+    doc.setFontSize(28);
+    doc.text(cfg.artistName.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.text(cfg.subtitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: 'center' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(cfg.updateText.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: 'center' });
+
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.setTextColor(110);
+    const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
+    doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: 'center' });
+
+    // Hojas de obras: una obra por página, siguiendo el formato del catálogo impreso.
+    for (let i = 0; i < artworks.length; i++) {
+        doc.addPage();
+        const art = artworks[i];
+        const imageX = 25;
+        const imageY = 12;
+        const imageMaxW = 160;
+        const imageMaxH = 190;
+
+        if (art.image && art.image.startsWith('data:')) {
+            try {
+                const img = new Image();
+                img.src = art.image;
+                await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
+
+                const imgRatio = img.width / img.height;
+                const boxRatio = imageMaxW / imageMaxH;
+                const renderW = imgRatio > boxRatio ? imageMaxW : imageMaxH * imgRatio;
+                const renderH = imgRatio > boxRatio ? imageMaxW / imgRatio : imageMaxH;
+                const offsetX = imageX + (imageMaxW - renderW) / 2;
+                const offsetY = imageY + (imageMaxH - renderH) / 2;
+
+                doc.addImage(art.image, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+            } catch (err) {
+                doc.setFillColor(245, 247, 250);
+                doc.rect(imageX, imageY, imageMaxW, imageMaxH, 'F');
+                doc.setTextColor(150);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.text('IMAGEN NO DISPONIBLE', pageWidth / 2, imageY + imageMaxH / 2, { align: 'center' });
+            }
         }
 
-    } catch (error) {
-        console.error('Error en la inicialización:', error);
-        showToast('Error al inicializar la aplicación', 'error');
+        const infoX = pageWidth - 18;
+        const titleLines = doc.splitTextToSize(art.title || 'SIN TÍTULO', 175);
+        const titleY = titleLines.length > 1 ? 267 : 271;
+
+        doc.setTextColor(20, 20, 20);
+        doc.setFont('times', 'bold');
+        doc.setFontSize(17);
+        doc.text(titleLines.slice(0, 2), infoX, titleY, { align: 'right' });
+
+        const info = [];
+        if (art.artist) info.push(art.artist);
+        if (cfg.showDims && art.dimensions) info.push(art.dimensions);
+        if (cfg.showFicha && art.medium) info.push(art.medium);
+        if (cfg.showPrices && art.price) info.push(art.price);
+        if (cfg.showLocation && art.location) info.push(art.location);
+        if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
+        if (art.code) info.push(art.code);
+
+        const infoText = info.join(' | ').toUpperCase();
+        if (infoText) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(105, 105, 105);
+            const infoLines = doc.splitTextToSize(infoText, 175).slice(0, 2);
+            doc.text(infoLines, infoX, titleY + (titleLines.length > 1 ? 13 : 8), { align: 'right' });
+        }
+
+        const footerY = 288;
+        const pageNum = i + 1;
+        const totalPages = artworks.length;
+        doc.setDrawColor(70, 70, 70);
+        doc.setLineWidth(0.25);
+        doc.line(5, footerY, pageWidth - 5, footerY);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(90, 90, 90);
+        doc.text((cfg.artistName || '').toUpperCase(), 5, footerY + 5, { align: 'left' });
+        doc.text((cfg.updateText || '').toUpperCase(), pageWidth / 2, footerY + 5, { align: 'center' });
+        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, pageWidth - 5, footerY + 5, { align: 'right' });
     }
-});
+
+    return doc.output('blob');
+}
+
+// Generar PDF completo (para descarga directa)
+async function generateCatalogPDF() {
+    if (state.selectedIds.size === 0) {
+        showToast('Selecciona al menos una obra de la grilla central para el PDF.', 'error');
+        return;
+    }
+
+    const loader = document.getElementById('loader');
+    const loaderText = document.getElementById('loaderText');
+    loader.classList.remove('hidden');
+    state.isLoading = true;
+
+    try {
+        const selectedWorks = state.rawObras.filter(o => state.selectedIds.has(o.id));
+        const processedArtworks = [];
+
+        for (let i = 0; i < selectedWorks.length; i++) {
+            const obra = selectedWorks[i];
+            loaderText.innerText = `Preparando imagen ${i + 1} de ${selectedWorks.length}...`;
+
+            let imgBase64 = null;
+            if (obra.adjuntos && obra.adjuntos.length > 0) {
+                const directUrl = getFullLH3ImageUrl(obra.adjuntos);
+                imgBase64 = await fetchImageAndConvertToBase64(directUrl);
+            }
+
+            const fallbackSvg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" fill="%23f8fafc"><rect width="100%" height="100%"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="%23cbd5e1" text-anchor="middle" dominant-baseline="middle">SIN IMAGEN DISPONIBLE</text></svg>';
+
+            const dimParts = [];
+            if (obra.ancho) dimParts.push(`${obra.ancho}`);
+            if (obra.alto) dimParts.push(`${obra.alto}`);
+            if (obra.largo) dimParts.push(`${obra.largo}`);
+            const dimStr = dimParts.length > 0 ? `${dimParts.join(' x ')} cm` : '';
+
+            const pVal = parseFloat(obra.precio_lista) || 0;
+            const priceStr = pVal > 0 ? `$${pVal.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : '';
+
+            const provObj = state.rawComisiones.find(c => c.id?.toString().trim() === (obra.provenance || '').toString().trim());
+            const realProv = provObj ? provObj.provenance : (obra.provenance || '');
+
+            processedArtworks.push({
+                image: imgBase64 || fallbackSvg,
+                title: (obra.nombre_obra || 'SIN TÍTULO').toUpperCase(),
+                artist: (obra.autor || '').toUpperCase(),
+                medium: (obra.tipo_obra || '').toUpperCase(),
+                dimensions: dimStr,
+                price: priceStr,
+                code: (obra.clave || ('CAT-' + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
+                location: (obra.ubicacion || '').toUpperCase(),
+                provider: realProv.toUpperCase()
+            });
+        }
+
+        loaderText.innerText = 'Sintetizando archivo PDF...';
+
+        const config = {
+            artistName: document.getElementById('pdfArtistName').value.trim() || 'CATÁLOGO',
+            subtitle: document.getElementById('pdfSubtitle').value.trim() || 'OBRA SELECCIONADA',
+            updateText: document.getElementById('pdfUpdateText').value.trim(),
+            legalNote: document.getElementById('pdfLegalNote').value.trim(),
+            showPrices: document.getElementById('cfgPrices').checked,
+            showDims: document.getElementById('cfgDims').checked,
+            showLocation: document.getElementById('cfgLocation').checked,
+            showProveedor: document.getElementById('cfgProveedor').checked,
+            showFicha: document.getElementById('cfgFicha').checked,
+            layout: state.currentPageLayout
+        };
+
+        // Generar el PDF como blob y descargar
+        const pdfBlob = await generatePDFBlob(processedArtworks, config);
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `CATALOGO_${config.artistName.replace(/\s+/g, '_')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast('PDF generado y descargado exitosamente.', 'success');
+
+    } catch (err) {
+        console.error('Fallo general creando PDF:', err);
+        showToast('Ocurrió un error inesperado al generar el PDF.', 'error');
+    } finally {
+        loader.classList.add('hidden');
+        state.isLoading = false;
+    }
+}
 
 // ============================================
-// EVENTOS GLOBALES
+// EXPORTAR FUNCIONES GLOBALMENTE
 // ============================================
 
-// Cerrar paneles al hacer clic fuera
-document.addEventListener('click', function (e) {
-    const configPanel = document.getElementById('configPanel');
-    const localPanel = document.getElementById('localCatalogsPanel');
-    const viewerPanel = document.getElementById('pdfViewer');
+// Exportar generatePDFBlob para que esté disponible en pdfViewer.js
+window.generatePDFBlob = generatePDFBlob;
 
-    // Cerrar config panel
-    if (configPanel && !configPanel.classList.contains('hidden')) {
-        if (!e.target.closest('.config-panel-content') && !e.target.closest('[onclick*="toggleConfigPanel"]')) {
-            closeConfigPanel();
-        }
-    }
-
-    // Cerrar panel de catálogos locales
-    if (localPanel && !localPanel.classList.contains('hidden')) {
-        if (!e.target.closest('.local-catalogs-panel') && !e.target.closest('[onclick*="toggleLocalCatalogsPanel"]')) {
-            localPanel.classList.add('hidden');
-        }
-    }
-});
-
-// ============================================
-// KEYBOARD SHORTCUTS
-// ============================================
-
-document.addEventListener('keydown', function (e) {
-    // Escape para cerrar paneles
-    if (e.key === 'Escape') {
-        closeAllSidebars();
-        if (document.getElementById('filterPanel').classList.contains('active')) {
-            closeFilterPanel();
-        }
-        // Cerrar visor si está abierto
-        const viewer = document.getElementById('pdfViewer');
-        if (viewer && !viewer.classList.contains('hidden')) {
-            closePDFViewer();
-        }
-    }
-
-    // Ctrl+F para abrir filtros
-    if (e.ctrlKey && e.key === 'f') {
-        e.preventDefault();
-        if (document.getElementById('filterPanel').classList.contains('active')) {
-            closeFilterPanel();
-        } else {
-            openFilters();
-        }
-    }
-
-    // Ctrl+S para guardar catálogo
-    if (e.ctrlKey && e.key === 's') {
-        e.preventDefault();
-        if (typeof saveCatalogToLocal === 'function') {
-            saveCatalogToLocal();
-        }
-    }
-
-    // Ctrl+V para abrir visor
-    if (e.ctrlKey && e.key === 'v') {
-        e.preventDefault();
-        if (typeof openPDFViewer === 'function') {
-            openPDFViewer();
-        }
-    }
-});
+// Exportar otras funciones que puedan ser necesarias
+window.fetchImageAndConvertToBase64 = fetchImageAndConvertToBase64;
+window.getFullLH3ImageUrl = getFullLH3ImageUrl;
+window.getJSPDF = getJSPDF;
