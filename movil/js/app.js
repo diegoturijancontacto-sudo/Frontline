@@ -163,6 +163,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.warn('loadCatalogsForViewer no está disponible. Verifica que pdfViewer.js esté cargado.');
         }
 
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+              .then(reg => console.log('Service Worker registrado con éxito:', reg.scope))
+              .catch(err => console.log('Error al registrar el Service Worker:', err));
+          });
+        }
+
     } catch (error) {
         console.error('Error en la inicialización:', error);
         showToast('Error al inicializar la aplicación', 'error');
