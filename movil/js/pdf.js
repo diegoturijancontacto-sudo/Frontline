@@ -141,6 +141,12 @@ async function generatePDFBlob(artworks, cfg) {
 
         const infoX = pageWidth - 18;
         const titleLines = doc.splitTextToSize(art.title || 'SIN TÍTULO', 175);
+        const titleY = titleLines.length > 1 ? 267 : 271;
+
+        doc.setTextColor(20, 20, 20);
+        doc.setFont('times', 'bold');
+        doc.setFontSize(17);
+        doc.text(titleLines.slice(0, 2), infoX, titleY, { align: 'right' });
 
         const info = [];
         if (art.artist) info.push(art.artist);
@@ -152,40 +158,15 @@ async function generatePDFBlob(artworks, cfg) {
         if (art.code) info.push(art.code);
 
         const infoText = info.join(' | ').toUpperCase();
-        const footerY = 288;
-        // Espacio de 105px entre los datos del título y la línea del pie de página
-        // En jsPDF con unidad 'mm' (estándar 96 DPI): 105px * 25.4 / 96 ≈ 27.78 mm
-        const gap105px = (105 * 25.4) / 96;
-
         if (infoText) {
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(8);
             doc.setTextColor(105, 105, 105);
             const infoLines = doc.splitTextToSize(infoText, 175).slice(0, 2);
-
-            const infoExtraH = infoLines.length > 1 ? 3.5 : 0;
-            const infoY = footerY - gap105px - infoExtraH;
-            const titleY = infoY - (titleLines.length > 1 ? 13 : 8);
-
-            doc.setTextColor(20, 20, 20);
-            doc.setFont('times', 'bold');
-            doc.setFontSize(17);
-            doc.text(titleLines.slice(0, 2), infoX, titleY, { align: 'right' });
-
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8);
-            doc.setTextColor(105, 105, 105);
-            doc.text(infoLines, infoX, infoY, { align: 'right' });
-        } else {
-            const titleExtraH = titleLines.length > 1 ? 6 : 0;
-            const titleY = footerY - gap105px - titleExtraH;
-
-            doc.setTextColor(20, 20, 20);
-            doc.setFont('times', 'bold');
-            doc.setFontSize(17);
-            doc.text(titleLines.slice(0, 2), infoX, titleY, { align: 'right' });
+            doc.text(infoLines, infoX, titleY + (titleLines.length > 1 ? 13 : 8), { align: 'right' });
         }
 
+        const footerY = 288;
         const pageNum = i + 1;
         const totalPages = artworks.length;
         doc.setDrawColor(70, 70, 70);
