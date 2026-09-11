@@ -106,109 +106,79 @@ async function generatePDFBlob(artworks, cfg) {
     const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
     doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: 'center' });
 
-    // Hojas de obras
-    const obrasPorHoja = Math.min(cfg.layout || 1, 4);
-
-    for (let i = 0; i < artworks.length; i += obrasPorHoja) {
+    // Hojas de obras: una obra por página, siguiendo el formato del catálogo impreso.
+    for (let i = 0; i < artworks.length; i++) {
         doc.addPage();
-        const chunk = artworks.slice(i, i + obrasPorHoja);
-        const margin = 20;
+        const art = artworks[i];
+        const imageX = 25;
+        const imageY = 12;
+        const imageMaxW = 160;
+        const imageMaxH = 190;
 
-        const cols = obrasPorHoja === 1 ? 1 : (obrasPorHoja === 2 ? 2 : 2);
-        const rows = obrasPorHoja === 4 ? 2 : 1;
+        if (art.image && art.image.startsWith('data:')) {
+            try {
+                const img = new Image();
+                img.src = art.image;
+                await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
 
-        const usableWidth = pageWidth - margin * 2;
-        const usableHeight = pageHeight - margin * 2 - 30;
+                const imgRatio = img.width / img.height;
+                const boxRatio = imageMaxW / imageMaxH;
+                const renderW = imgRatio > boxRatio ? imageMaxW : imageMaxH * imgRatio;
+                const renderH = imgRatio > boxRatio ? imageMaxW / imgRatio : imageMaxH;
+                const offsetX = imageX + (imageMaxW - renderW) / 2;
+                const offsetY = imageY + (imageMaxH - renderH) / 2;
 
-        const itemWidth = (usableWidth - (cols - 1) * 15) / cols;
-        const itemHeight = Math.min((usableHeight - (rows - 1) * 15) / rows, 200);
-
-        const imageMaxW = itemWidth - 10;
-        const imageMaxH = itemHeight - 45;
-
-        for (let idx = 0; idx < chunk.length; idx++) {
-            const art = chunk[idx];
-            const col = idx % cols;
-            const row = Math.floor(idx / cols);
-
-            const x = margin + col * (itemWidth + 15);
-            const y = margin + row * (itemHeight + 15);
-
-            if (art.image && art.image.startsWith('data:')) {
-                try {
-                    const img = new Image();
-                    img.src = art.image;
-                    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
-
-                    const imgRatio = img.width / img.height;
-                    const boxRatio = imageMaxW / imageMaxH;
-
-                    let renderW, renderH;
-                    if (imgRatio > boxRatio) {
-                        renderW = imageMaxW;
-                        renderH = imageMaxW / imgRatio;
-                    } else {
-                        renderH = imageMaxH;
-                        renderW = imageMaxH * imgRatio;
-                    }
-
-                    const offsetX = x + (imageMaxW - renderW) / 2;
-                    const offsetY = y + (imageMaxH - renderH) / 2;
-
-                    doc.addImage(art.image, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
-                } catch (err) {
-                    doc.setFillColor(245, 247, 250);
-                    doc.rect(x, y, imageMaxW, imageMaxH, 'F');
-                    doc.setTextColor(150);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(8);
-                    doc.text('IMAGEN NO DISPONIBLE', x + imageMaxW / 2, y + imageMaxH / 2, { align: 'center' });
-                }
-            }
-
-            const infoY = y + imageMaxH + 3;
-
-            doc.setTextColor(20, 20, 20);
-            doc.setFont('times', 'bold');
-            doc.setFontSize(9);
-            const title = art.title.length > 35 ? art.title.substring(0, 32) + '...' : art.title;
-            doc.text(title, x + imageMaxW / 2, infoY + 4, { align: 'center' });
-
-            if (art.artist) {
+                doc.addImage(art.image, undefined, offsetX, offsetY, renderW, renderH, undefined, 'FAST');
+            } catch (err) {
+                doc.setFillColor(245, 247, 250);
+                doc.rect(imageX, imageY, imageMaxW, imageMaxH, 'F');
+                doc.setTextColor(150);
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(7);
-                doc.setTextColor(110);
-                const artist = art.artist.length > 30 ? art.artist.substring(0, 27) + '...' : art.artist;
-                doc.text(artist, x + imageMaxW / 2, infoY + 11, { align: 'center' });
-            }
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(6);
-            doc.setTextColor(90);
-            let info = [];
-            if (cfg.showFicha && art.medium) info.push(art.medium);
-            if (cfg.showDims && art.dimensions) info.push(art.dimensions);
-            if (cfg.showPrices && art.price) info.push(art.price);
-            if (cfg.showLocation && art.location) info.push(art.location);
-            if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
-            if (art.code) info.push(art.code);
-
-            const infoText = info.join(' | ').toUpperCase();
-            if (infoText) {
-                const splitInfo = doc.splitTextToSize(infoText, imageMaxW - 4);
-                const displayInfo = splitInfo.length > 2 ? splitInfo.slice(0, 2) : splitInfo;
-                displayInfo.forEach((line, li) => {
-                    doc.text(line, x + imageMaxW / 2, infoY + 16 + (li * 4), { align: 'center' });
-                });
+                doc.setFontSize(8);
+                doc.text('IMAGEN NO DISPONIBLE', pageWidth / 2, imageY + imageMaxH / 2, { align: 'center' });
             }
         }
 
-        const pageNum = Math.floor(i / obrasPorHoja) + 1;
-        const totalPages = Math.ceil(artworks.length / obrasPorHoja);
-        doc.setFontSize(6);
-        doc.setTextColor(170);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+        const infoX = pageWidth - 18;
+        const titleLines = doc.splitTextToSize(art.title || 'SIN TÍTULO', 175);
+        const titleY = titleLines.length > 1 ? 267 : 271;
+
+        doc.setTextColor(20, 20, 20);
+        doc.setFont('times', 'bold');
+        doc.setFontSize(17);
+        doc.text(titleLines.slice(0, 2), infoX, titleY, { align: 'right' });
+
+        const info = [];
+        if (art.artist) info.push(art.artist);
+        if (cfg.showDims && art.dimensions) info.push(art.dimensions);
+        if (cfg.showFicha && art.medium) info.push(art.medium);
+        if (cfg.showPrices && art.price) info.push(art.price);
+        if (cfg.showLocation && art.location) info.push(art.location);
+        if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
+        if (art.code) info.push(art.code);
+
+        const infoText = info.join(' | ').toUpperCase();
+        if (infoText) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(8);
+            doc.setTextColor(105, 105, 105);
+            const infoLines = doc.splitTextToSize(infoText, 175).slice(0, 2);
+            doc.text(infoLines, infoX, titleY + (titleLines.length > 1 ? 13 : 8), { align: 'right' });
+        }
+
+        const footerY = 288;
+        const pageNum = i + 1;
+        const totalPages = artworks.length;
+        doc.setDrawColor(70, 70, 70);
+        doc.setLineWidth(0.25);
+        doc.line(5, footerY, pageWidth - 5, footerY);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(90, 90, 90);
+        doc.text((cfg.artistName || '').toUpperCase(), 5, footerY + 5, { align: 'left' });
+        doc.text((cfg.updateText || '').toUpperCase(), pageWidth / 2, footerY + 5, { align: 'center' });
+        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, pageWidth - 5, footerY + 5, { align: 'right' });
     }
 
     return doc.output('blob');
