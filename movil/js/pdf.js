@@ -254,7 +254,7 @@ async function generateCatalogPDF() {
                 medium: (obra.tipo_obra || '').toUpperCase(),
                 dimensions: dimStr,
                 price: priceStr,
-                code: (obra.clave || ('CAT-' + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
+                code: (obra.clave ? obra.clave.replace(/-/g, '') : ('CAT-' + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
                 location: (obra.ubicacion || '').toUpperCase(),
                 provider: realProv.toUpperCase()
             });
