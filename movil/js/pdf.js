@@ -52,6 +52,53 @@ function convertGoogleDriveUrl(url) {
     return url;
 }
 
+let catalogFontsPromise = null;
+
+async function loadCatalogFonts(doc) {
+    if (!catalogFontsPromise) {
+        catalogFontsPromise = Promise.all([
+            ['Avenir-Roman.ttf', 'Avenir-Roman'],
+            ['CormorantGaramond-SemiBold.ttf', 'CormorantGaramond-SemiBold'],
+            ['CormorantGaramond-MediumItalic.ttf', 'CormorantGaramond-MediumItalic']
+        ].map(async ([fileName, fontFileName]) => {
+            const response = await fetch(`./fonts/${fileName}`);
+            if (!response.ok) throw new Error(`No se pudo cargar la fuente ${fileName}`);
+            const bytes = new Uint8Array(await response.arrayBuffer());
+            let binary = '';
+            bytes.forEach(byte => binary += String.fromCharCode(byte));
+            return [fontFileName, btoa(binary)];
+        }));
+    }
+
+    const fonts = await catalogFontsPromise;
+    fonts.forEach(([fontFileName, fontData]) => {
+        doc.addFileToVFS(`${fontFileName}.ttf`, fontData);
+    });
+    doc.addFont('Avenir-Roman.ttf', 'Avenir', 'normal');
+    doc.addFont('Avenir-Roman.ttf', 'Avenir', 'bold');
+        doc.addFont('CormorantGaramond-SemiBold.ttf', 'Cormorant Garamond', 'bold');
+        doc.addFont('CormorantGaramond-MediumItalic.ttf', 'Cormorant Garamond', 'italic');
+}
+
+function drawTechnicalInfo(doc, info, price, x, y) {
+    const normalParts = info.filter(Boolean);
+    const normalText = normalParts.join(' | ');
+    const priceText = price ? `${normalText ? ' | ' : ''}${price}` : '';
+
+    doc.setFont('Avenir', 'normal');
+    doc.setFontSize(8);
+    const totalWidth = doc.getTextWidth(normalText) + doc.getTextWidth(priceText);
+    let cursorX = x - totalWidth;
+    if (normalText) {
+        doc.text(normalText, cursorX, y);
+        cursorX += doc.getTextWidth(normalText);
+    }
+    if (priceText) {
+        doc.setFont('Avenir', 'bold');
+        doc.text(priceText, cursorX, y);
+    }
+}
+
 // Generar PDF como Blob (para el visor)
 async function generatePDFBlob(artworks, cfg) {
     // Verificar que jsPDF está disponible
@@ -63,6 +110,8 @@ async function generatePDFBlob(artworks, cfg) {
     const doc = new PDFLib('p', 'mm', 'a4');
     const pageWidth = 210;
     const pageHeight = 297;
+
+    await loadCatalogFonts(doc);
 
     let logoData = null;
     try {
@@ -110,10 +159,12 @@ async function generatePDFBlob(artworks, cfg) {
     for (let i = 0; i < artworks.length; i++) {
         doc.addPage();
         const art = artworks[i];
-        const imageX = 25;
-        const imageY = 12;
-        const imageMaxW = 160;
-        const imageMaxH = 190;
+
+        // --- MEDIDAS EXACTAS DEL ESQUEMA ---
+        const imageX = 44.7;      // Margen izquierdo
+        const imageY = 20.0;      // Borde superior
+        const imageMaxW = 120.6;  // Ancho máximo de la imagen
+        const imageMaxH = 155.0;  // Alto máximo de la imagen
 
         if (art.image && art.image.startsWith('data:')) {
             try {
@@ -139,69 +190,59 @@ async function generatePDFBlob(artworks, cfg) {
             }
         }
 
-        // --- TÍTULO PRINCIPAL ---
-        const infoX = pageWidth - 20;
+        // --- POSICIONES EXACTAS DE TEXTOS ---
+        const infoX = pageWidth - 22; // Margen derecho duplicado: 22 mm
+
+        // Título
         const titleLines = doc.splitTextToSize(art.title || 'SIN TÍTULO', 175);
-        const titleY = titleLines.length > 1 ? 272 : 276; // Ajustado por el interlineado ampliado
+        const titleY = 256.96;
 
         doc.setTextColor(20, 20, 20);
-        doc.setFont('times', 'bold');
-        doc.setFontSize(19); // +2pt respecto al original (17 -> 19)
+        doc.setFont('Cormorant Garamond', 'bold');
+        doc.setFontSize(14);
         doc.text(titleLines.slice(0, 2), infoX, titleY, { align: 'right' });
 
-        // --- SUBTÍTULO: AUTOR ---
-        // Interlineado aumentado 50% respecto al valor reducido (4 -> 6  /  6.5 -> 9.75)
-        let subtitleY = titleY + (titleLines.length > 1 ? 9.75 : 6);
+        // Subtítulo (Autor)
+        const subtitleY = titleY + 4.63;
         if (art.artist) {
-            doc.setFont('times', 'italic');
-            doc.setFontSize(11);
-            doc.setTextColor(80, 80, 80);
+            doc.setFont('Cormorant Garamond', 'italic');
+            doc.setFontSize(12);
+            doc.setTextColor(20, 20, 20);
             doc.text(art.artist.toUpperCase(), infoX, subtitleY, { align: 'right' });
-            subtitleY += 4.5; // Antes 3, ahora 4.5 (+50%)
-        } else {
-            subtitleY += 1.5; // Antes 1, ahora 1.5 (+50%)
         }
 
-        // --- INFORMACIÓN TÉCNICA (sin el autor, que ya está en subtítulo) ---
+        // Ficha Técnica (Info y Precio)
         const info = [];
         if (cfg.showDims && art.dimensions) info.push(art.dimensions);
         if (cfg.showFicha && art.medium) info.push(art.medium);
-        if (cfg.showPrices && art.price) info.push(art.price);
         if (cfg.showLocation && art.location) info.push(art.location);
         if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
         if (art.code) info.push(art.code);
 
-        const infoText = info.join(' | ').toUpperCase();
-        if (infoText) {
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(8);
-            doc.setTextColor(105, 105, 105);
-            const infoLines = doc.splitTextToSize(infoText, 175).slice(0, 2);
-            doc.text(infoLines, infoX, subtitleY, { align: 'right' });
+        if (info.length || (cfg.showPrices && art.price)) {
+            doc.setTextColor(20, 20, 20);
+            // El pie queda 7.65 mm debajo de la línea base de los datos.
+            drawTechnicalInfo(doc, info, cfg.showPrices ? art.price : '', infoX, 280.45);
         }
 
-        const footerY = 288;
+        // --- PIE DE PÁGINA EXACTO ---
+        const footerY = pageHeight - 12.90;
         const pageNum = i + 1;
         const totalPages = artworks.length;
 
-        // Extremos de la línea
-        const lineX1 = 20;
-        const lineX2 = pageWidth - 20;   // = 190
-        const lineCenter = (lineX1 + lineX2) / 2;  // = 105 (que casualmente es pageWidth/2)
+        const lineX1 = 14;
+        const lineX2 = pageWidth - 14;
 
-        // Línea
-        doc.setDrawColor(70, 70, 70);
-        doc.setLineWidth(0.25);
+        doc.setDrawColor(20, 20, 20);
+        doc.setLineWidth(0.2);
+
+        doc.setFont('Cormorant Garamond', 'italic');
+        doc.setFontSize(8);
+        doc.setTextColor(20, 20, 20);
+        doc.text(`${cfg.artistName || ''} • Pág ${pageNum} de ${totalPages} • ${cfg.updateText || ''} • ${cfg.subtitle || ''}`, lineX1, footerY + 4);
+
+        // Línea superior del pie, con el mismo margen horizontal de 14 mm.
         doc.line(lineX1, footerY, lineX2, footerY);
-
-        // Textos alineados con la línea
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(6.5);
-        doc.setTextColor(90, 90, 90);
-
-        doc.text((cfg.artistName || '').toUpperCase(), lineX1, footerY + 5, { align: 'left' });
-        doc.text((cfg.updateText || '').toUpperCase(), lineCenter, footerY + 5, { align: 'center' });
-        doc.text(`PÁGINA ${pageNum} DE ${totalPages}`, lineX2, footerY + 5, { align: 'right' });
     }
 
     return doc.output('blob');
