@@ -323,6 +323,7 @@ header {
     gap: 8px;
 }
 
+/* Barra compacta de acciones, inspirada en los grupos de herramientas de Photoshop. */
 .results-toolbar {
     display: flex;
     align-items: center;
@@ -698,6 +699,7 @@ header {
     padding: 12px;
     border-radius: 8px;
     border: 1px solid #e5e7eb;
+    space-y: 10px;
 }
 
 .config-section > div {
@@ -751,102 +753,58 @@ header {
 }
 
 .config-toggles {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
+    space-y: 14px;
 }
 
 .config-toggle-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    padding: 6px 0;
 }
 
 /* ============================================
-   TOGGLES - VERSIÓN FINAL CORREGIDA
+   TOGGLES
    ============================================ */
-.toggle-wrapper {
-    position: relative !important;
-    display: inline-block !important;
-    width: 42px !important;
-    height: 24px !important;
-    flex-shrink: 0;
-}
-
-/* Input real: invisible pero cubre toda el área (recibe el click) */
 .toggle-switch {
-    position: absolute !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    opacity: 0 !important;
-    cursor: pointer !important;
-    z-index: 99 !important;
-    appearance: none !important;
-    -webkit-appearance: none !important;
-    border: none !important;
-    background: transparent !important;
+    appearance: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #cbd5e1;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: absolute;
+    top: -4px;
 }
 
-/* Pastilla visible */
+.toggle-switch:checked {
+    border-color: #1e293b;
+    right: -4px;
+}
+
+.toggle-switch:not(:checked) {
+    right: 14px;
+}
+
+.toggle-switch:checked + .toggle-bg {
+    background-color: #1e293b;
+}
+
+.toggle-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+}
+
 .toggle-bg {
-    position: absolute !important;
-    inset: 0 !important;
-    display: block !important;
-    width: 100% !important;
-    height: 100% !important;
-    border-radius: 9999px !important;
-    background-color: #cbd5e1 !important;
-    cursor: pointer !important;
-    transition: background-color 0.3s !important;
-    z-index: 1 !important;
-    pointer-events: none !important;
-}
-
-.toggle-bg::after {
-    content: "" !important;
-    position: absolute !important;
-    top: 2px !important;
-    left: 2px !important;
-    width: 20px !important;
-    height: 20px !important;
-    border-radius: 50% !important;
-    background: #ffffff !important;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.25) !important;
-    transition: transform 0.3s !important;
-}
-
-/* Estado activo - MÁXIMA ESPECIFICIDAD */
-input.toggle-switch:checked + label.toggle-bg,
-input.toggle-switch:checked ~ .toggle-bg {
-    background-color: #1e293b !important;
-}
-
-input.toggle-switch:checked + label.toggle-bg::after,
-input.toggle-switch:checked ~ .toggle-bg::after {
-    transform: translateX(18px) !important;
-}
-
-/* Estado inactivo */
-input.toggle-switch:not(:checked) + label.toggle-bg,
-input.toggle-switch:not(:checked) ~ .toggle-bg {
-    background-color: #cbd5e1 !important;
-}
-
-input.toggle-switch:not(:checked) + label.toggle-bg::after,
-input.toggle-switch:not(:checked) ~ .toggle-bg::after {
-    transform: translateX(0) !important;
-}
-
-/* Foco accesible */
-.toggle-switch:focus-visible + .toggle-bg {
-    outline: 2px solid #3b82f6 !important;
-    outline-offset: 2px !important;
+    display: block;
+    width: 36px;
+    height: 20px;
+    border-radius: 9999px;
+    background-color: #cbd5e1;
+    cursor: pointer;
+    transition: background-color 0.3s;
 }
 
 /* ============================================
@@ -894,9 +852,7 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     flex: 1;
     overflow-y: auto;
     padding: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    space-y: 8px;
 }
 
 /* ============================================
@@ -1131,9 +1087,9 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     backdrop-filter: blur(4px);
 }
 
-.pdf-viewer-overlay:not(.hidden) {
-    display: flex;
-}
+    .pdf-viewer-overlay:not(.hidden) {
+        display: flex;
+    }
 
 .pdf-viewer-container {
     background: white;
@@ -1174,16 +1130,16 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     flex: 1;
 }
 
-.pdf-viewer-title i {
-    font-size: 14px;
-    flex-shrink: 0;
-}
+    .pdf-viewer-title i {
+        font-size: 14px;
+        flex-shrink: 0;
+    }
 
-.pdf-viewer-title span {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+    .pdf-viewer-title span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
 .pdf-viewer-actions {
     display: flex;
@@ -1206,18 +1162,18 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     min-height: 32px;
 }
 
-.pdf-viewer-btn i {
-    font-size: 14px;
-}
+    .pdf-viewer-btn i {
+        font-size: 14px;
+    }
 
-.pdf-viewer-btn span {
-    display: none;
-}
+    .pdf-viewer-btn span {
+        display: none;
+    }
 
-.pdf-viewer-btn:hover {
-    background: #f1f5f9;
-    border-color: #94a3b8;
-}
+    .pdf-viewer-btn:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+    }
 
 .pdf-viewer-btn-close {
     padding: 4px 10px;
@@ -1234,9 +1190,9 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     justify-content: center;
 }
 
-.pdf-viewer-btn-close:hover {
-    background: #dc2626;
-}
+    .pdf-viewer-btn-close:hover {
+        background: #dc2626;
+    }
 
 /* ============================================
    CUERPO DEL VISOR
@@ -1274,18 +1230,18 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     flex-shrink: 0;
 }
 
-.pdf-sidebar-header h3 {
-    font-size: 11px;
-    font-weight: 600;
-    color: #1e293b;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
+    .pdf-sidebar-header h3 {
+        font-size: 11px;
+        font-weight: 600;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
 
-.pdf-sidebar-header h3 i {
-    font-size: 12px;
-}
+        .pdf-sidebar-header h3 i {
+            font-size: 12px;
+        }
 
 .pdf-catalog-list {
     flex: 1;
@@ -1313,53 +1269,53 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     touch-action: manipulation;
 }
 
-.pdf-catalog-item:active {
-    transform: scale(0.97);
-}
+    .pdf-catalog-item:active {
+        transform: scale(0.97);
+    }
 
-.pdf-catalog-item.active {
-    background: #1e293b;
-    color: white;
-    border-color: #1e293b;
-}
+    .pdf-catalog-item.active {
+        background: #1e293b;
+        color: white;
+        border-color: #1e293b;
+    }
 
-.pdf-catalog-item.active .pdf-catalog-date {
-    color: #94a3b8;
-}
+        .pdf-catalog-item.active .pdf-catalog-date {
+            color: #94a3b8;
+        }
 
-.pdf-catalog-item .pdf-catalog-info {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    flex: 1;
-}
+    .pdf-catalog-item .pdf-catalog-info {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        flex: 1;
+    }
 
-.pdf-catalog-item .pdf-catalog-title {
-    font-size: 11px;
-    font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
+    .pdf-catalog-item .pdf-catalog-title {
+        font-size: 11px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
 
-.pdf-catalog-item .pdf-catalog-date {
-    font-size: 9px;
-    color: #94a3b8;
-}
+    .pdf-catalog-item .pdf-catalog-date {
+        font-size: 9px;
+        color: #94a3b8;
+    }
 
-.pdf-catalog-item .pdf-catalog-count {
-    font-size: 9px;
-    background: #e5e7eb;
-    padding: 1px 6px;
-    border-radius: 10px;
-    white-space: nowrap;
-    flex-shrink: 0;
-}
+    .pdf-catalog-item .pdf-catalog-count {
+        font-size: 9px;
+        background: #e5e7eb;
+        padding: 1px 6px;
+        border-radius: 10px;
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
 
-.pdf-catalog-item.active .pdf-catalog-count {
-    background: #334155;
-    color: #94a3b8;
-}
+    .pdf-catalog-item.active .pdf-catalog-count {
+        background: #334155;
+        color: #94a3b8;
+    }
 
 /* ============================================
    ÁREA DEL PDF
@@ -1385,13 +1341,13 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     -webkit-overflow-scrolling: touch;
 }
 
-.pdf-viewer-frame canvas {
-    max-width: 100%;
-    height: auto !important;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-    background: white;
-}
+    .pdf-viewer-frame canvas {
+        max-width: 100%;
+        height: auto !important;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border-radius: 4px;
+        background: white;
+    }
 
 .pdf-placeholder {
     text-align: center;
@@ -1399,19 +1355,19 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     padding: 20px;
 }
 
-.pdf-placeholder i {
-    display: block;
-    font-size: 40px;
-    margin-bottom: 10px;
-}
+    .pdf-placeholder i {
+        display: block;
+        font-size: 40px;
+        margin-bottom: 10px;
+    }
 
-.pdf-placeholder p {
-    font-size: 12px;
-}
+    .pdf-placeholder p {
+        font-size: 12px;
+    }
 
-.pdf-placeholder .text-sm {
-    font-size: 10px;
-}
+    .pdf-placeholder .text-sm {
+        font-size: 10px;
+    }
 
 /* ============================================
    CONTROLES DE NAVEGACIÓN DEL PDF
@@ -1445,19 +1401,19 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     justify-content: center;
 }
 
-.pdf-nav-btn:active {
-    transform: scale(0.95);
-}
+    .pdf-nav-btn:active {
+        transform: scale(0.95);
+    }
 
-.pdf-nav-btn:hover {
-    background: #f1f5f9;
-    border-color: #94a3b8;
-}
+    .pdf-nav-btn:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+    }
 
-.pdf-nav-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-}
+    .pdf-nav-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
 
 .pdf-page-info {
     font-size: 12px;
@@ -1480,19 +1436,19 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
     padding: 20px;
 }
 
-.pdf-loading .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid #e5e7eb;
-    border-top: 3px solid #1e293b;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin-bottom: 10px;
-}
+    .pdf-loading .spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid #e5e7eb;
+        border-top: 3px solid #1e293b;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 10px;
+    }
 
-.pdf-loading p {
-    font-size: 12px;
-}
+    .pdf-loading p {
+        font-size: 12px;
+    }
 
 /* ============================================
    RESPONSIVE - Tablet (>= 640px)
@@ -1522,9 +1478,9 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
         min-height: 36px;
     }
 
-    .pdf-viewer-btn span {
-        display: inline;
-    }
+        .pdf-viewer-btn span {
+            display: inline;
+        }
 
     .pdf-viewer-btn-close {
         padding: 6px 14px;
@@ -1541,9 +1497,9 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
         min-height: 40px;
     }
 
-    .pdf-catalog-item .pdf-catalog-title {
-        font-size: 12px;
-    }
+        .pdf-catalog-item .pdf-catalog-title {
+            font-size: 12px;
+        }
 
     .pdf-viewer-controls {
         padding: 8px 16px;
@@ -1603,9 +1559,9 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
         font-size: 10px;
     }
 
-    .pdf-viewer-title i {
-        font-size: 12px;
-    }
+        .pdf-viewer-title i {
+            font-size: 12px;
+        }
 
     .pdf-viewer-btn {
         padding: 3px 6px;
@@ -1613,9 +1569,9 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
         min-height: 28px;
     }
 
-    .pdf-viewer-btn i {
-        font-size: 12px;
-    }
+        .pdf-viewer-btn i {
+            font-size: 12px;
+        }
 
     .pdf-viewer-btn-close {
         padding: 3px 8px;
@@ -1631,27 +1587,27 @@ input.toggle-switch:not(:checked) ~ .toggle-bg::after {
         padding: 4px 8px;
     }
 
-    .pdf-sidebar-header h3 {
-        font-size: 10px;
-    }
+        .pdf-sidebar-header h3 {
+            font-size: 10px;
+        }
 
     .pdf-catalog-item {
         padding: 4px 8px;
         min-height: 30px;
     }
 
-    .pdf-catalog-item .pdf-catalog-title {
-        font-size: 10px;
-    }
+        .pdf-catalog-item .pdf-catalog-title {
+            font-size: 10px;
+        }
 
-    .pdf-catalog-item .pdf-catalog-date {
-        font-size: 8px;
-    }
+        .pdf-catalog-item .pdf-catalog-date {
+            font-size: 8px;
+        }
 
-    .pdf-catalog-item .pdf-catalog-count {
-        font-size: 8px;
-        padding: 1px 4px;
-    }
+        .pdf-catalog-item .pdf-catalog-count {
+            font-size: 8px;
+            padding: 1px 4px;
+        }
 
     .pdf-viewer-controls {
         padding: 4px 8px;
