@@ -230,12 +230,28 @@ function setPageLayout(layout) {
 }
 
 function syncConfigs() {
-    const ids = ['cfgPrices', 'cfgDims', 'cfgLocation', 'cfgProveedor', 'cfgFicha'];
-    ids.forEach(id => {
-        const el1 = document.getElementById(id);
-        const el2 = document.getElementById(id + 'Panel');
-        if (el1 && el2) {
-            el2.checked = el1.checked;
+    // Sincronización bidireccional inteligente.
+    // Detecta qué elemento disparó el cambio (el que tiene el foco)
+    // y propaga al otro. NO revierte el cambio del usuario.
+    const pairs = [
+        ['cfgPrices',    'cfgPricesPanel'],
+        ['cfgDims',      'cfgDimsPanel'],
+        ['cfgLocation',  'cfgLocationPanel'],
+        ['cfgProveedor', 'cfgProveedorPanel'],
+        ['cfgFicha',     'cfgFichaPanel']
+    ];
+
+    const active = document.activeElement;
+
+    pairs.forEach(([barId, panelId]) => {
+        const bar = document.getElementById(barId);
+        const panel = document.getElementById(panelId);
+        if (!bar || !panel) return;
+
+        if (active === panel) {
+            if (bar.checked !== panel.checked) bar.checked = panel.checked;
+        } else if (active === bar) {
+            if (panel.checked !== bar.checked) panel.checked = bar.checked;
         }
     });
 }
