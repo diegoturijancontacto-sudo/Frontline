@@ -760,51 +760,80 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 6px 0;
 }
 
 /* ============================================
-   TOGGLES
+   TOGGLES - CORREGIDO (CLICKEABLES)
    ============================================ */
-.toggle-switch {
-    appearance: none;
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: white;
-    border: 2px solid #cbd5e1;
-    cursor: pointer;
-    transition: all 0.3s;
-    position: absolute;
-    top: -4px;
-}
-
-.toggle-switch:checked {
-    border-color: #1e293b;
-    right: -4px;
-}
-
-.toggle-switch:not(:checked) {
-    right: 14px;
-}
-
-.toggle-switch:checked + .toggle-bg {
-    background-color: #1e293b;
-}
-
 .toggle-wrapper {
     position: relative;
     display: inline-block;
-    width: 36px;
+    width: 42px;
+    height: 24px;
+    flex-shrink: 0;
 }
 
+/* Input real: invisible pero cubre toda el área (recibe el click) */
+.toggle-switch {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    cursor: pointer;
+    z-index: 2;
+    appearance: none;
+    -webkit-appearance: none;
+    border: none;
+    background: transparent;
+}
+
+/* Pastilla visible */
 .toggle-bg {
+    position: absolute;
+    inset: 0;
     display: block;
-    width: 36px;
-    height: 20px;
+    width: 100%;
+    height: 100%;
     border-radius: 9999px;
     background-color: #cbd5e1;
     cursor: pointer;
     transition: background-color 0.3s;
+    z-index: 1;
+    pointer-events: none; /* el click lo recibe el input de arriba */
+}
+
+.toggle-bg::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    transition: transform 0.3s;
+}
+
+/* Estado activo */
+.toggle-switch:checked + .toggle-bg {
+    background-color: #1e293b;
+}
+
+.toggle-switch:checked + .toggle-bg::after {
+    transform: translateX(18px);
+}
+
+/* Foco accesible */
+.toggle-switch:focus-visible + .toggle-bg {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
 }
 
 /* ============================================
@@ -1087,9 +1116,9 @@ header {
     backdrop-filter: blur(4px);
 }
 
-    .pdf-viewer-overlay:not(.hidden) {
-        display: flex;
-    }
+.pdf-viewer-overlay:not(.hidden) {
+    display: flex;
+}
 
 .pdf-viewer-container {
     background: white;
@@ -1130,16 +1159,16 @@ header {
     flex: 1;
 }
 
-    .pdf-viewer-title i {
-        font-size: 14px;
-        flex-shrink: 0;
-    }
+.pdf-viewer-title i {
+    font-size: 14px;
+    flex-shrink: 0;
+}
 
-    .pdf-viewer-title span {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+.pdf-viewer-title span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 .pdf-viewer-actions {
     display: flex;
@@ -1162,18 +1191,18 @@ header {
     min-height: 32px;
 }
 
-    .pdf-viewer-btn i {
-        font-size: 14px;
-    }
+.pdf-viewer-btn i {
+    font-size: 14px;
+}
 
-    .pdf-viewer-btn span {
-        display: none;
-    }
+.pdf-viewer-btn span {
+    display: none;
+}
 
-    .pdf-viewer-btn:hover {
-        background: #f1f5f9;
-        border-color: #94a3b8;
-    }
+.pdf-viewer-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
 
 .pdf-viewer-btn-close {
     padding: 4px 10px;
@@ -1190,9 +1219,9 @@ header {
     justify-content: center;
 }
 
-    .pdf-viewer-btn-close:hover {
-        background: #dc2626;
-    }
+.pdf-viewer-btn-close:hover {
+    background: #dc2626;
+}
 
 /* ============================================
    CUERPO DEL VISOR
@@ -1230,18 +1259,18 @@ header {
     flex-shrink: 0;
 }
 
-    .pdf-sidebar-header h3 {
-        font-size: 11px;
-        font-weight: 600;
-        color: #1e293b;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
+.pdf-sidebar-header h3 {
+    font-size: 11px;
+    font-weight: 600;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
 
-        .pdf-sidebar-header h3 i {
-            font-size: 12px;
-        }
+.pdf-sidebar-header h3 i {
+    font-size: 12px;
+}
 
 .pdf-catalog-list {
     flex: 1;
@@ -1269,53 +1298,53 @@ header {
     touch-action: manipulation;
 }
 
-    .pdf-catalog-item:active {
-        transform: scale(0.97);
-    }
+.pdf-catalog-item:active {
+    transform: scale(0.97);
+}
 
-    .pdf-catalog-item.active {
-        background: #1e293b;
-        color: white;
-        border-color: #1e293b;
-    }
+.pdf-catalog-item.active {
+    background: #1e293b;
+    color: white;
+    border-color: #1e293b;
+}
 
-        .pdf-catalog-item.active .pdf-catalog-date {
-            color: #94a3b8;
-        }
+.pdf-catalog-item.active .pdf-catalog-date {
+    color: #94a3b8;
+}
 
-    .pdf-catalog-item .pdf-catalog-info {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        flex: 1;
-    }
+.pdf-catalog-item .pdf-catalog-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+}
 
-    .pdf-catalog-item .pdf-catalog-title {
-        font-size: 11px;
-        font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
+.pdf-catalog-item .pdf-catalog-title {
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
-    .pdf-catalog-item .pdf-catalog-date {
-        font-size: 9px;
-        color: #94a3b8;
-    }
+.pdf-catalog-item .pdf-catalog-date {
+    font-size: 9px;
+    color: #94a3b8;
+}
 
-    .pdf-catalog-item .pdf-catalog-count {
-        font-size: 9px;
-        background: #e5e7eb;
-        padding: 1px 6px;
-        border-radius: 10px;
-        white-space: nowrap;
-        flex-shrink: 0;
-    }
+.pdf-catalog-item .pdf-catalog-count {
+    font-size: 9px;
+    background: #e5e7eb;
+    padding: 1px 6px;
+    border-radius: 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
 
-    .pdf-catalog-item.active .pdf-catalog-count {
-        background: #334155;
-        color: #94a3b8;
-    }
+.pdf-catalog-item.active .pdf-catalog-count {
+    background: #334155;
+    color: #94a3b8;
+}
 
 /* ============================================
    ÁREA DEL PDF
@@ -1341,13 +1370,13 @@ header {
     -webkit-overflow-scrolling: touch;
 }
 
-    .pdf-viewer-frame canvas {
-        max-width: 100%;
-        height: auto !important;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        border-radius: 4px;
-        background: white;
-    }
+.pdf-viewer-frame canvas {
+    max-width: 100%;
+    height: auto !important;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    background: white;
+}
 
 .pdf-placeholder {
     text-align: center;
@@ -1355,19 +1384,19 @@ header {
     padding: 20px;
 }
 
-    .pdf-placeholder i {
-        display: block;
-        font-size: 40px;
-        margin-bottom: 10px;
-    }
+.pdf-placeholder i {
+    display: block;
+    font-size: 40px;
+    margin-bottom: 10px;
+}
 
-    .pdf-placeholder p {
-        font-size: 12px;
-    }
+.pdf-placeholder p {
+    font-size: 12px;
+}
 
-    .pdf-placeholder .text-sm {
-        font-size: 10px;
-    }
+.pdf-placeholder .text-sm {
+    font-size: 10px;
+}
 
 /* ============================================
    CONTROLES DE NAVEGACIÓN DEL PDF
@@ -1401,19 +1430,19 @@ header {
     justify-content: center;
 }
 
-    .pdf-nav-btn:active {
-        transform: scale(0.95);
-    }
+.pdf-nav-btn:active {
+    transform: scale(0.95);
+}
 
-    .pdf-nav-btn:hover {
-        background: #f1f5f9;
-        border-color: #94a3b8;
-    }
+.pdf-nav-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}
 
-    .pdf-nav-btn:disabled {
-        opacity: 0.3;
-        cursor: not-allowed;
-    }
+.pdf-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
 
 .pdf-page-info {
     font-size: 12px;
@@ -1436,19 +1465,19 @@ header {
     padding: 20px;
 }
 
-    .pdf-loading .spinner {
-        width: 32px;
-        height: 32px;
-        border: 3px solid #e5e7eb;
-        border-top: 3px solid #1e293b;
-        border-radius: 50%;
-        animation: spin 1s linear infinite;
-        margin-bottom: 10px;
-    }
+.pdf-loading .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #e5e7eb;
+    border-top: 3px solid #1e293b;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
 
-    .pdf-loading p {
-        font-size: 12px;
-    }
+.pdf-loading p {
+    font-size: 12px;
+}
 
 /* ============================================
    RESPONSIVE - Tablet (>= 640px)
@@ -1478,9 +1507,9 @@ header {
         min-height: 36px;
     }
 
-        .pdf-viewer-btn span {
-            display: inline;
-        }
+    .pdf-viewer-btn span {
+        display: inline;
+    }
 
     .pdf-viewer-btn-close {
         padding: 6px 14px;
@@ -1497,9 +1526,9 @@ header {
         min-height: 40px;
     }
 
-        .pdf-catalog-item .pdf-catalog-title {
-            font-size: 12px;
-        }
+    .pdf-catalog-item .pdf-catalog-title {
+        font-size: 12px;
+    }
 
     .pdf-viewer-controls {
         padding: 8px 16px;
@@ -1559,9 +1588,9 @@ header {
         font-size: 10px;
     }
 
-        .pdf-viewer-title i {
-            font-size: 12px;
-        }
+    .pdf-viewer-title i {
+        font-size: 12px;
+    }
 
     .pdf-viewer-btn {
         padding: 3px 6px;
@@ -1569,9 +1598,9 @@ header {
         min-height: 28px;
     }
 
-        .pdf-viewer-btn i {
-            font-size: 12px;
-        }
+    .pdf-viewer-btn i {
+        font-size: 12px;
+    }
 
     .pdf-viewer-btn-close {
         padding: 3px 8px;
@@ -1587,27 +1616,27 @@ header {
         padding: 4px 8px;
     }
 
-        .pdf-sidebar-header h3 {
-            font-size: 10px;
-        }
+    .pdf-sidebar-header h3 {
+        font-size: 10px;
+    }
 
     .pdf-catalog-item {
         padding: 4px 8px;
         min-height: 30px;
     }
 
-        .pdf-catalog-item .pdf-catalog-title {
-            font-size: 10px;
-        }
+    .pdf-catalog-item .pdf-catalog-title {
+        font-size: 10px;
+    }
 
-        .pdf-catalog-item .pdf-catalog-date {
-            font-size: 8px;
-        }
+    .pdf-catalog-item .pdf-catalog-date {
+        font-size: 8px;
+    }
 
-        .pdf-catalog-item .pdf-catalog-count {
-            font-size: 8px;
-            padding: 1px 4px;
-        }
+    .pdf-catalog-item .pdf-catalog-count {
+        font-size: 8px;
+        padding: 1px 4px;
+    }
 
     .pdf-viewer-controls {
         padding: 4px 8px;
