@@ -136,7 +136,7 @@ async function generatePDFBlob(artworks, cfg) {
     }
 
     try {
-        const res = await fetch('./logo_pie_de_pagina.jpeg');
+        const res = await fetch('./logo_pie_de_pagina_borra_.png');
         if (res.ok) {
             const blob = await res.blob();
             footerLogoData = await new Promise(r => {
