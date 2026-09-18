@@ -237,7 +237,6 @@ function syncConfigs() {
         ['cfgPrices',    'cfgPricesPanel'],
         ['cfgDims',      'cfgDimsPanel'],
         ['cfgLocation',  'cfgLocationPanel'],
-        ['cfgProveedor', 'cfgProveedorPanel'],
         ['cfgFicha',     'cfgFichaPanel']
     ];
 

@@ -237,7 +237,6 @@ async function generatePDFBlob(artworks, cfg) {
         if (cfg.showDims && art.dimensions) info.push(art.dimensions);
         if (cfg.showFicha && art.medium) info.push(art.medium);
         if (cfg.showLocation && art.location) info.push(art.location);
-        if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
         if (art.code) info.push(art.code);
 
         if (info.length || (cfg.showPrices && art.price)) {
@@ -316,9 +315,6 @@ async function generateCatalogPDF() {
             const pVal = parseFloat(obra.precio_lista) || 0;
             const priceStr = pVal > 0 ? `$${pVal.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : '';
 
-            const provObj = state.rawComisiones.find(c => c.id?.toString().trim() === (obra.provenance || '').toString().trim());
-            const realProv = provObj ? provObj.provenance : (obra.provenance || '');
-
             processedArtworks.push({
                 image: imgBase64 || fallbackSvg,
                 title: (obra.nombre_obra || 'SIN TÍTULO').toUpperCase(),
@@ -327,8 +323,7 @@ async function generateCatalogPDF() {
                 dimensions: dimStr,
                 price: priceStr,
                 code: (obra.clave ? obra.clave.replace(/-/g, '') : ('CAT-' + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
-                location: (obra.ubicacion || '').toUpperCase(),
-                provider: realProv.toUpperCase()
+                location: (obra.ubicacion || '').toUpperCase()
             });
         }
 
@@ -342,7 +337,6 @@ async function generateCatalogPDF() {
             showPrices: document.getElementById('cfgPrices').checked,
             showDims: document.getElementById('cfgDims').checked,
             showLocation: document.getElementById('cfgLocation').checked,
-            showProveedor: document.getElementById('cfgProveedor').checked,
             showFicha: document.getElementById('cfgFicha').checked,
             layout: state.currentPageLayout
         };

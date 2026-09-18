@@ -270,9 +270,6 @@ async function generateAndDisplayPDF(catalog) {
         const pVal = parseFloat(obra.precio_lista) || 0;
         const priceStr = pVal > 0 ? `$${pVal.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : '';
 
-        const provObj = state.rawComisiones.find(c => c.id?.toString().trim() === (obra.provenance || '').toString().trim());
-        const realProv = provObj ? provObj.provenance : (obra.provenance || '');
-
         processedArtworks.push({
             image: imgBase64 || fallbackSvg,
             title: (obra.nombre_obra || 'SIN TÍTULO').toUpperCase(),
@@ -281,8 +278,7 @@ async function generateAndDisplayPDF(catalog) {
             dimensions: dimStr,
             price: priceStr,
             code: (obra.clave || ('CAT-' + Math.floor(1000 + Math.random() * 9000))).toUpperCase(),
-            location: (obra.ubicacion || '').toUpperCase(),
-            provider: realProv.toUpperCase()
+            location: (obra.ubicacion || '').toUpperCase()
         });
     }
 
@@ -294,7 +290,6 @@ async function generateAndDisplayPDF(catalog) {
         showPrices: catalog.config?.cfgPrices !== undefined ? catalog.config.cfgPrices : true,
         showDims: catalog.config?.cfgDims !== undefined ? catalog.config.cfgDims : true,
         showLocation: catalog.config?.cfgLocation !== undefined ? catalog.config.cfgLocation : true,
-        showProveedor: catalog.config?.cfgProveedor || false,
         showFicha: catalog.config?.cfgFicha !== undefined ? catalog.config.cfgFicha : true,
         layout: state.currentPageLayout || 1
     };
