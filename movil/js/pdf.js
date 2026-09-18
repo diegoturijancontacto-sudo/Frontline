@@ -225,13 +225,13 @@ async function generatePDFBlob(artworks, cfg) {
             drawTechnicalInfo(doc, info, cfg.showPrices ? art.price : '', infoX, 280.45);
         }
 
-        // --- PIE DE PÁGINA EXACTO (texto a la izquierda, línea completa) ---
+        // --- PIE DE PÁGINA EXACTO ---
         const footerY = pageHeight - 12.90;
         const pageNum = i + 1;
         const totalPages = artworks.length;
 
         const lineX1 = 14;
-        const lineX2 = pageWidth - 14;
+        const lineX2 = pageWidth - 14; // Se mantiene la línea completa
 
         doc.setDrawColor(20, 20, 20);
         doc.setLineWidth(0.2);
@@ -239,10 +239,10 @@ async function generatePDFBlob(artworks, cfg) {
         doc.setFont('Cormorant Garamond', 'italic');
         doc.setFontSize(8);
         doc.setTextColor(20, 20, 20);
-        // Texto alineado a la izquierda desde lineX1
+        // Texto alineado a la IZQUIERDA desde lineX1
         doc.text(`${cfg.artistName || ''} • Pág ${pageNum} de ${totalPages} • ${cfg.updateText || ''} • ${cfg.subtitle || ''}`, lineX1, footerY + 4, { align: 'left' });
 
-        // Línea superior del pie, con el mismo margen horizontal de 14 mm.
+        // Línea superior del pie (se mantiene de extremo a extremo)
         doc.line(lineX1, footerY, lineX2, footerY);
     }
 
