@@ -76,8 +76,8 @@ async function loadCatalogFonts(doc) {
     });
     doc.addFont('Avenir-Roman.ttf', 'Avenir', 'normal');
     doc.addFont('Avenir-Roman.ttf', 'Avenir', 'bold');
-        doc.addFont('CormorantGaramond-SemiBold.ttf', 'Cormorant Garamond', 'bold');
-        doc.addFont('CormorantGaramond-MediumItalic.ttf', 'Cormorant Garamond', 'italic');
+    doc.addFont('CormorantGaramond-SemiBold.ttf', 'Cormorant Garamond', 'bold');
+    doc.addFont('CormorantGaramond-MediumItalic.ttf', 'Cormorant Garamond', 'italic');
 }
 
 function drawTechnicalInfo(doc, info, price, x, y) {
@@ -94,6 +94,7 @@ function drawTechnicalInfo(doc, info, price, x, y) {
         cursorX += doc.getTextWidth(normalText);
     }
     if (priceText) {
+        // El precio siempre en NEGRITA (bold)
         doc.setFont('Avenir', 'bold');
         doc.text(priceText, cursorX, y);
     }
@@ -231,7 +232,7 @@ async function generatePDFBlob(artworks, cfg) {
         const totalPages = artworks.length;
 
         const lineX1 = 14;
-        const lineX2 = pageWidth - 14; // Se mantiene la línea completa
+        const lineX2 = pageWidth - 14; // Línea completa
 
         doc.setDrawColor(20, 20, 20);
         doc.setLineWidth(0.2);
@@ -239,8 +240,13 @@ async function generatePDFBlob(artworks, cfg) {
         doc.setFont('Cormorant Garamond', 'italic');
         doc.setFontSize(8);
         doc.setTextColor(20, 20, 20);
-        // Texto alineado a la IZQUIERDA desde lineX1
-        doc.text(`${cfg.artistName || ''} • Pág ${pageNum} de ${totalPages} • ${cfg.updateText || ''} • ${cfg.subtitle || ''}`, lineX1, footerY + 4, { align: 'left' });
+        // Texto del pie alineado a la DERECHA usando lineX2
+        doc.text(
+            `${cfg.artistName || ''} • Pág ${pageNum} de ${totalPages} • ${cfg.updateText || ''} • ${cfg.subtitle || ''}`,
+            lineX2,
+            footerY + 4,
+            { align: 'right' }
+        );
 
         // Línea superior del pie (se mantiene de extremo a extremo)
         doc.line(lineX1, footerY, lineX2, footerY);
