@@ -225,17 +225,13 @@ async function generatePDFBlob(artworks, cfg) {
             drawTechnicalInfo(doc, info, cfg.showPrices ? art.price : '', infoX, 280.45);
         }
 
-        // --- PIE DE PÁGINA EXACTO (ahora alineado a la izquierda) ---
+        // --- PIE DE PÁGINA EXACTO (texto a la izquierda, línea completa) ---
         const footerY = pageHeight - 12.90;
         const pageNum = i + 1;
         const totalPages = artworks.length;
 
         const lineX1 = 14;
-        // La línea ahora solo llega hasta donde termina el texto (o un ancho fijo)
-        // Opción A: línea solo debajo del texto (se calcula dinámicamente)
-        // Opción B: línea de ancho fijo (ej. 80 mm)
-        // Aquí usamos un ancho fijo de 80 mm para que la derecha quede vacía.
-        const lineX2 = lineX1 + 80;
+        const lineX2 = pageWidth - 14;
 
         doc.setDrawColor(20, 20, 20);
         doc.setLineWidth(0.2);
@@ -246,7 +242,7 @@ async function generatePDFBlob(artworks, cfg) {
         // Texto alineado a la izquierda desde lineX1
         doc.text(`${cfg.artistName || ''} • Pág ${pageNum} de ${totalPages} • ${cfg.updateText || ''} • ${cfg.subtitle || ''}`, lineX1, footerY + 4, { align: 'left' });
 
-        // Línea superior del pie, solo hasta lineX2 (derecha vacía)
+        // Línea superior del pie, con el mismo margen horizontal de 14 mm.
         doc.line(lineX1, footerY, lineX2, footerY);
     }
 
