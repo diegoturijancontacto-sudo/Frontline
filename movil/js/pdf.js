@@ -58,6 +58,7 @@ async function loadCatalogFonts(doc) {
     if (!catalogFontsPromise) {
         catalogFontsPromise = Promise.all([
             ['Avenir-Roman.ttf', 'Avenir-Roman'],
+            ['Avenir-Black.ttf', 'Avenir-Black'],
             ['CormorantGaramond-SemiBold.ttf', 'CormorantGaramond-SemiBold'],
             ['CormorantGaramond-MediumItalic.ttf', 'CormorantGaramond-MediumItalic']
         ].map(async ([fileName, fontFileName]) => {
@@ -76,8 +77,9 @@ async function loadCatalogFonts(doc) {
     });
     doc.addFont('Avenir-Roman.ttf', 'Avenir', 'normal');
     doc.addFont('Avenir-Roman.ttf', 'Avenir', 'bold');
-        doc.addFont('CormorantGaramond-SemiBold.ttf', 'Cormorant Garamond', 'bold');
-        doc.addFont('CormorantGaramond-MediumItalic.ttf', 'Cormorant Garamond', 'italic');
+    doc.addFont('Avenir-Black.ttf', 'Avenir Black', 'normal');
+    doc.addFont('CormorantGaramond-SemiBold.ttf', 'Cormorant Garamond', 'bold');
+    doc.addFont('CormorantGaramond-MediumItalic.ttf', 'Cormorant Garamond', 'italic');
 }
 
 function drawTechnicalInfo(doc, info, price, x, y) {
@@ -87,14 +89,18 @@ function drawTechnicalInfo(doc, info, price, x, y) {
 
     doc.setFont('Avenir', 'normal');
     doc.setFontSize(8);
-    const totalWidth = doc.getTextWidth(normalText) + doc.getTextWidth(priceText);
+    const normalWidth = doc.getTextWidth(normalText);
+    doc.setFont('Avenir Black', 'normal');
+    const priceWidth = doc.getTextWidth(priceText);
+    const totalWidth = normalWidth + priceWidth;
     let cursorX = x - totalWidth;
     if (normalText) {
+        doc.setFont('Avenir', 'normal');
         doc.text(normalText, cursorX, y);
-        cursorX += doc.getTextWidth(normalText);
+        cursorX += normalWidth;
     }
     if (priceText) {
-        doc.setFont('Avenir', 'bold');
+        doc.setFont('Avenir Black', 'normal');
         doc.text(priceText, cursorX, y);
     }
 }
@@ -114,6 +120,7 @@ async function generatePDFBlob(artworks, cfg) {
     await loadCatalogFonts(doc);
 
     let logoData = null;
+    let footerLogoData = null;
     try {
         const res = await fetch(LOGO_PATH);
         if (res.ok) {
@@ -126,6 +133,20 @@ async function generatePDFBlob(artworks, cfg) {
         }
     } catch (e) {
         console.warn('No se pudo cargar el logo:', e);
+    }
+
+    try {
+        const res = await fetch('./logo_pie_de_pagina.jpeg');
+        if (res.ok) {
+            const blob = await res.blob();
+            footerLogoData = await new Promise(r => {
+                const reader = new FileReader();
+                reader.onload = () => r(reader.result);
+                reader.readAsDataURL(blob);
+            });
+        }
+    } catch (e) {
+        console.warn('No se pudo cargar el logo del pie:', e);
     }
 
     // Portada
@@ -236,13 +257,23 @@ async function generatePDFBlob(artworks, cfg) {
         doc.setDrawColor(20, 20, 20);
         doc.setLineWidth(0.2);
 
+        const footerLogoSize = pageWidth * 0.05;
+        const footerLogoX = lineX1;
+        const footerLogoY = footerY - footerLogoSize / 2;
+        const footerTextX = footerLogoX + footerLogoSize + 4;
+
+        if (footerLogoData) {
+            doc.addImage(footerLogoData, 'JPEG', footerLogoX, footerLogoY, footerLogoSize, footerLogoSize);
+        }
+
         doc.setFont('Cormorant Garamond', 'italic');
         doc.setFontSize(8);
         doc.setTextColor(20, 20, 20);
-        doc.text(`${cfg.artistName || ''} • Pág ${pageNum} de ${totalPages} • ${cfg.updateText || ''} • ${cfg.subtitle || ''}`, lineX1, footerY + 4);
+        doc.text(`${cfg.artistName || ''} • ${cfg.updateText || ''} • ${cfg.subtitle || ''}`, footerTextX, footerY + 4);
+        doc.text(`Pág ${pageNum} de ${totalPages}`, lineX2, footerY + 4, { align: 'right' });
 
-        // Línea superior del pie, con el mismo margen horizontal de 14 mm.
-        doc.line(lineX1, footerY, lineX2, footerY);
+        // La línea comienza después del logo para no invadirlo.
+        doc.line(footerTextX, footerY, lineX2, footerY);
     }
 
     return doc.output('blob');
