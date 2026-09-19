@@ -42,6 +42,7 @@ async function saveCatalogToLocal() {
         cfgPrices: document.getElementById('cfgPrices').checked,
         cfgDims: document.getElementById('cfgDims').checked,
         cfgLocation: document.getElementById('cfgLocation').checked,
+        cfgProveedor: document.getElementById('cfgProveedor').checked,
         cfgFicha: document.getElementById('cfgFicha').checked,
         cfgBiography: document.getElementById('cfgBiography')?.checked || false
     };
@@ -185,6 +186,7 @@ async function loadSavedCatalog(id) {
             document.getElementById('cfgPrices').checked = catalog.config.cfgPrices !== undefined ? catalog.config.cfgPrices : true;
             document.getElementById('cfgDims').checked = catalog.config.cfgDims !== undefined ? catalog.config.cfgDims : true;
             document.getElementById('cfgLocation').checked = catalog.config.cfgLocation !== undefined ? catalog.config.cfgLocation : true;
+            document.getElementById('cfgProveedor').checked = catalog.config.cfgProveedor || false;
             document.getElementById('cfgFicha').checked = catalog.config.cfgFicha !== undefined ? catalog.config.cfgFicha : true;
             
             syncConfigs();

@@ -530,13 +530,12 @@ header {
 .grid-container {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 0;
 }
 
 @media (min-width: 640px) {
     .grid-container {
         grid-template-columns: repeat(2, 1fr);
-        gap: 24px;
     }
 }
 

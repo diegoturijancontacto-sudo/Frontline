@@ -138,7 +138,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         goHome();
 
         // Agregar listeners para los checkboxes del panel de configuración
-        const panelCheckboxes = ['cfgPricesPanel', 'cfgDimsPanel', 'cfgLocationPanel', 'cfgFichaPanel'];
+        const panelCheckboxes = ['cfgPricesPanel', 'cfgDimsPanel', 'cfgLocationPanel', 'cfgProveedorPanel', 'cfgFichaPanel'];
         panelCheckboxes.forEach(id => {
             const el = document.getElementById(id);
             if (el) {

@@ -23,6 +23,7 @@ const DEFAULT_CONFIG = {
     cfgPrices: true,
     cfgDims: true,
     cfgLocation: true,
+    cfgProveedor: false,
     cfgFicha: true,
     cfgBiography: false
 };

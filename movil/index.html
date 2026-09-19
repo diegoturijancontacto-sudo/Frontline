@@ -259,6 +259,7 @@
                             <label><input type="checkbox" id="cfgPrices" checked onchange="syncConfigs()"> Precios</label>
                             <label><input type="checkbox" id="cfgDims" checked onchange="syncConfigs()"> Dimensiones</label>
                             <label><input type="checkbox" id="cfgLocation" checked onchange="syncConfigs()"> Ubicación</label>
+                            <label><input type="checkbox" id="cfgProveedor" onchange="syncConfigs()"> Proveedor</label>
                             <label><input type="checkbox" id="cfgFicha" checked onchange="syncConfigs()"> Ficha técnica</label>
                         </div>
 
@@ -356,6 +357,13 @@
                                     <div class="toggle-wrapper">
                                         <input type="checkbox" id="cfgLocationPanel" checked class="toggle-switch" onchange="syncConfigs()" />
                                         <label for="cfgLocationPanel" class="toggle-bg"></label>
+                                    </div>
+                                </div>
+                                <div class="config-toggle-item">
+                                    <span class="text-xs text-slate-700 font-medium">Mostrar proveedor</span>
+                                    <div class="toggle-wrapper">
+                                        <input type="checkbox" id="cfgProveedorPanel" class="toggle-switch" onchange="syncConfigs()" />
+                                        <label for="cfgProveedorPanel" class="toggle-bg"></label>
                                     </div>
                                 </div>
                                 <div class="config-toggle-item opacity-60">
