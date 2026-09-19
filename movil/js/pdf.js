@@ -85,19 +85,27 @@ async function loadCatalogFonts(doc) {
 function drawTechnicalInfo(doc, info, price, x, y) {
     const normalParts = info.filter(Boolean);
     const normalText = normalParts.join(' | ');
-    const priceText = price ? `${normalText ? ' | ' : ''}${price}` : '';
+    const priceText = price ? `${price}` : '';
+    const separator = (normalText && priceText) ? ' | ' : '';
 
     doc.setFont('Avenir', 'normal');
     doc.setFontSize(8);
     const normalWidth = doc.getTextWidth(normalText);
+    const separatorWidth = doc.getTextWidth(separator);
     doc.setFont('Avenir Black', 'normal');
     const priceWidth = doc.getTextWidth(priceText);
-    const totalWidth = normalWidth + priceWidth;
+    const totalWidth = normalWidth + separatorWidth + priceWidth;
     let cursorX = x - totalWidth;
+
     if (normalText) {
         doc.setFont('Avenir', 'normal');
         doc.text(normalText, cursorX, y);
         cursorX += normalWidth;
+    }
+    if (separator) {
+        doc.setFont('Avenir', 'normal');
+        doc.text(separator, cursorX, y);
+        cursorX += separatorWidth;
     }
     if (priceText) {
         doc.setFont('Avenir Black', 'normal');
@@ -174,7 +182,13 @@ async function generatePDFBlob(artworks, cfg) {
     doc.setFontSize(8);
     doc.setTextColor(110);
     const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
-    doc.text(splitNote, pageWidth / 2, pageHeight - 25, { align: 'center' });
+    const noteLineHeight = doc.getFontSize() * 0.3528 * 1.15;
+    const noteBottomY = pageHeight - 18;
+    const noteY = noteBottomY - (splitNote.length - 1) * noteLineHeight;
+    doc.text(splitNote, pageWidth / 2, noteY, {
+        align: 'center',
+        lineHeightFactor: 1.15
+    });
 
     // Hojas de obras: una obra por página, siguiendo el formato del catálogo impreso.
     for (let i = 0; i < artworks.length; i++) {
@@ -227,7 +241,7 @@ async function generatePDFBlob(artworks, cfg) {
         const subtitleY = titleY + 4.63;
         if (art.artist) {
             doc.setFont('Cormorant Garamond', 'italic');
-            doc.setFontSize(12);
+            doc.setFontSize(10);
             doc.setTextColor(20, 20, 20);
             doc.text(art.artist.toUpperCase(), infoX, subtitleY, { align: 'right' });
         }
