@@ -126,6 +126,55 @@ function closeAllSidebars() {
     document.getElementById('localCatalogsPanel').classList.add('hidden');
 }
 
+function getExternalWorkIds() {
+    const idsParam = new URLSearchParams(window.location.search).get('ids');
+    if (!idsParam) return [];
+
+    return [...new Set(
+        idsParam
+            .split(',')
+            .map(id => id.trim())
+            .filter(Boolean)
+    )];
+}
+
+function openExternalSelection() {
+    const requestedIds = getExternalWorkIds();
+    if (requestedIds.length === 0) return false;
+
+    const worksById = new Map(state.rawObras.map(obra => [String(obra.id), obra]));
+    const validIds = requestedIds.filter(id => worksById.has(id));
+    const missingIds = requestedIds.filter(id => !worksById.has(id));
+    const validWorks = validIds.map(id => worksById.get(id));
+
+    if (validIds.length === 0) {
+        showToast('No se encontraron obras para los IDs recibidos.', 'error');
+        return false;
+    }
+
+    state.selectedIds = new Set(validWorks.map(obra => obra.id));
+    state.filteredObras = [...state.rawObras];
+    state.hasAppliedInitialFilters = true;
+
+    document.getElementById('homeScreen').style.display = 'none';
+    document.getElementById('homeScreen').classList.add('hidden');
+    document.getElementById('resultsPanel').classList.remove('hidden');
+    document.getElementById('searchContainer').classList.remove('hidden');
+    document.getElementById('pageTitle').textContent = 'Resultados';
+    document.getElementById('btnConfigCatalogo').classList.remove('hidden');
+
+    updateSidebarSummary();
+    sortData();
+
+    if (missingIds.length > 0) {
+        showToast(`Se omitieron ${missingIds.length} ID(s) no encontrados.`, 'info');
+    } else {
+        showToast(`${validIds.length} obra(s) seleccionada(s).`, 'success');
+    }
+
+    return true;
+}
+
 // ============================================
 // INICIALIZACIÓN
 // ============================================
@@ -135,7 +184,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Cargar datos
         await fetchSheetsDatabase();
         await loadLocalCatalogs();
-        goHome();
+        const hasExternalSelection = openExternalSelection();
+        if (!hasExternalSelection) {
+            goHome();
+        }
 
         // Agregar listeners para los checkboxes del panel de configuración
         const panelCheckboxes = ['cfgPricesPanel', 'cfgDimsPanel', 'cfgLocationPanel', 'cfgProveedorPanel', 'cfgFichaPanel'];
