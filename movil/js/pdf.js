@@ -179,7 +179,7 @@ async function generatePDFBlob(artworks, cfg) {
     doc.text(cfg.updateText.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: 'center' });
 
     doc.setFont('helvetica', 'italic');
-    doc.setFontSize(8);
+    doc.setFontSize(7);
     doc.setTextColor(110);
     const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
     const noteLineHeight = doc.getFontSize() * 0.3528 * 1.15;
