@@ -327,7 +327,7 @@ async function generateCatalogPDF() {
             if (obra.largo) dimParts.push(`${obra.largo}`);
             const dimStr = dimParts.length > 0 ? `${dimParts.join(' x ')} cm` : '';
 
-            const pVal = parseFloat(obra.precio_lista) || 0;
+            const pVal = parseFloat(obra.precio_venta) || 0;
             const priceStr = pVal > 0 ? `$${pVal.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : '';
 
             const provObj = state.rawComisiones.find(c => c.id?.toString().trim() === (obra.provenance || '').toString().trim());
