@@ -174,17 +174,38 @@ async function generatePDFBlob(artworks, cfg) {
     doc.setFontSize(10);
     doc.text(cfg.subtitle.toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: 'center' });
 
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9);
-    doc.text(cfg.updateText.toUpperCase(), pageWidth / 2, pageHeight - 40, { align: 'center' });
-
+    // --- NOTA LEGAL (se calcula primero para saber cuánto espacio ocupa) ---
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(7);
     doc.setTextColor(110);
-    const splitNote = doc.splitTextToSize(cfg.legalNote, 160);
+    const splitNote = doc.splitTextToSize(cfg.legalNote || '', 160);
     const noteLineHeight = doc.getFontSize() * 0.3528 * 1.15;
     const noteBottomY = pageHeight - 18;
     const noteY = noteBottomY - (splitNote.length - 1) * noteLineHeight;
+
+    // --- TEXTO DE ACTUALIZACIÓN ---
+    // Posición original preferida (comportamiento previo cuando la nota es corta)
+    const preferredUpdateTextY = pageHeight - 40;
+
+    // Separación mínima deseada entre el texto de actualización y el inicio de la nota legal
+    const minGapBetweenUpdateAndNote = 8;
+
+    // Si la nota legal es corta, el inicio de la nota (noteY) está muy abajo,
+    // por lo que preferredUpdateTextY queda por encima con espacio suficiente.
+    // Si la nota crece, noteY sube; en ese caso empujamos el texto de actualización
+    // hacia arriba para mantener la separación mínima.
+    const maxAllowedUpdateTextY = noteY - minGapBetweenUpdateAndNote;
+    const updateTextY = Math.min(preferredUpdateTextY, maxAllowedUpdateTextY);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(20, 20, 20);
+    doc.text((cfg.updateText || '').toUpperCase(), pageWidth / 2, updateTextY, { align: 'center' });
+
+    // --- DIBUJAR NOTA LEGAL ---
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(7);
+    doc.setTextColor(110);
     doc.text(splitNote, pageWidth / 2, noteY, {
         align: 'center',
         lineHeightFactor: 1.15
