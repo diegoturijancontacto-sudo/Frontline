@@ -293,7 +293,7 @@ async function generateAndDisplayPDF(catalog) {
         legalNote: catalog.config?.legalNote || 'Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.',
         showPrices: catalog.config?.cfgPrices !== undefined ? catalog.config.cfgPrices : true,
         showDims: catalog.config?.cfgDims !== undefined ? catalog.config.cfgDims : true,
-        showLocation: catalog.config?.cfgLocation !== undefined ? catalog.config.cfgLocation : true,
+        showLocation: false,
         showProveedor: catalog.config?.cfgProveedor || false,
         showFicha: catalog.config?.cfgFicha !== undefined ? catalog.config.cfgFicha : true,
         layout: state.currentPageLayout || 1

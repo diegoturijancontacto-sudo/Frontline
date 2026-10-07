@@ -22,7 +22,7 @@ const DEFAULT_CONFIG = {
     legalNote: 'Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.',
     cfgPrices: true,
     cfgDims: true,
-    cfgLocation: true,
+    cfgLocation: false,
     cfgProveedor: false,
     cfgFicha: true,
     cfgBiography: false

@@ -271,7 +271,6 @@ async function generatePDFBlob(artworks, cfg) {
         const info = [];
         if (cfg.showDims && art.dimensions) info.push(art.dimensions);
         if (cfg.showFicha && art.medium) info.push(art.medium);
-        if (cfg.showLocation && art.location) info.push(art.location);
         if (cfg.showProveedor && art.provider) info.push(`PROV: ${art.provider}`);
         if (art.code) info.push(art.code);
 
@@ -376,7 +375,7 @@ async function generateCatalogPDF() {
             legalNote: document.getElementById('pdfLegalNote').value.trim(),
             showPrices: document.getElementById('cfgPrices').checked,
             showDims: document.getElementById('cfgDims').checked,
-            showLocation: document.getElementById('cfgLocation').checked,
+            showLocation: false,
             showProveedor: document.getElementById('cfgProveedor').checked,
             showFicha: document.getElementById('cfgFicha').checked,
             layout: state.currentPageLayout
