@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mi-pwa-cache-v1.2.22'; // 1. Cambia el nombre de la versión
+const CACHE_NAME = 'mi-pwa-cache-v1.2.3'; // 1. Cambia el nombre de la versión
 const urlsToCache = [
   './',
   './mobile.html',
