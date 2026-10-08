@@ -23,6 +23,7 @@ async function createNewCatalog() {
     
     document.getElementById('cfgPrices').checked = true;
     document.getElementById('cfgDims').checked = true;
+    document.getElementById('cfgDimsOrder').checked = true;
     document.getElementById('cfgLocation').checked = false;
     document.getElementById('cfgProveedor').checked = false;
     document.getElementById('cfgFicha').checked = true;

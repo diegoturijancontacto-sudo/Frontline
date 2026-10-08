@@ -341,11 +341,7 @@ async function generateCatalogPDF() {
 
             const fallbackSvg = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" fill="%23f8fafc"><rect width="100%" height="100%"/><text x="50%" y="50%" font-family="Arial" font-size="20" fill="%23cbd5e1" text-anchor="middle" dominant-baseline="middle">SIN IMAGEN DISPONIBLE</text></svg>';
 
-            const dimParts = [];
-            if (obra.ancho) dimParts.push(`${obra.ancho}`);
-            if (obra.alto) dimParts.push(`${obra.alto}`);
-            if (obra.largo) dimParts.push(`${obra.largo}`);
-            const dimStr = dimParts.length > 0 ? `${dimParts.join(' x ')} cm` : '';
+            const dimStr = formatPDFDimensions(obra, document.getElementById('cfgDimsOrder').checked);
 
             const pVal = parseFloat(obra.precio_venta) || 0;
             const priceStr = pVal > 0 ? `$${pVal.toLocaleString('en-US')} ${obra.tipo_moneda || 'MXN'}` : '';
@@ -375,6 +371,7 @@ async function generateCatalogPDF() {
             legalNote: document.getElementById('pdfLegalNote').value.trim(),
             showPrices: document.getElementById('cfgPrices').checked,
             showDims: document.getElementById('cfgDims').checked,
+            useHeightLengthWidth: document.getElementById('cfgDimsOrder').checked,
             showLocation: false,
             showProveedor: document.getElementById('cfgProveedor').checked,
             showFicha: document.getElementById('cfgFicha').checked,

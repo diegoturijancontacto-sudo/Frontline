@@ -41,6 +41,7 @@ async function saveCatalogToLocal() {
         legalNote: document.getElementById('pdfLegalNote').value.trim(),
         cfgPrices: document.getElementById('cfgPrices').checked,
         cfgDims: document.getElementById('cfgDims').checked,
+        cfgDimsOrder: document.getElementById('cfgDimsOrder').checked,
         cfgLocation: false,
         cfgProveedor: document.getElementById('cfgProveedor').checked,
         cfgFicha: document.getElementById('cfgFicha').checked,
@@ -185,6 +186,7 @@ async function loadSavedCatalog(id) {
             
             document.getElementById('cfgPrices').checked = catalog.config.cfgPrices !== undefined ? catalog.config.cfgPrices : true;
             document.getElementById('cfgDims').checked = catalog.config.cfgDims !== undefined ? catalog.config.cfgDims : true;
+            document.getElementById('cfgDimsOrder').checked = catalog.config.cfgDimsOrder !== undefined ? catalog.config.cfgDimsOrder : true;
             document.getElementById('cfgLocation').checked = false;
             document.getElementById('cfgProveedor').checked = catalog.config.cfgProveedor || false;
             document.getElementById('cfgFicha').checked = catalog.config.cfgFicha !== undefined ? catalog.config.cfgFicha : true;

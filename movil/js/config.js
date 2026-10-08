@@ -22,6 +22,7 @@ const DEFAULT_CONFIG = {
     legalNote: 'Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.',
     cfgPrices: true,
     cfgDims: true,
+    cfgDimsOrder: true,
     cfgLocation: false,
     cfgProveedor: false,
     cfgFicha: true,
@@ -43,6 +44,19 @@ const state = {
     // NUEVO: Título original del catálogo (para saber si cambió)
     currentCatalogTitle: null
 };
+
+function formatPDFDimensions(obra, useHeightLengthWidth = true) {
+    const dimParts = [];
+    const dimensions = useHeightLengthWidth
+        ? [obra.alto, obra.largo, obra.ancho]
+        : [obra.ancho, obra.alto, obra.largo];
+
+    dimensions.forEach(dimension => {
+        if (dimension) dimParts.push(`${dimension}`);
+    });
+
+    return dimParts.length > 0 ? `${dimParts.join(' x ')} cm` : '';
+}
 
 // Referencia a jsPDF
 let jsPDFLib = null;
