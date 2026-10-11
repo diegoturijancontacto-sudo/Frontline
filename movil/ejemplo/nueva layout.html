@@ -1,0 +1,3314 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTBROK Workspace</title>
+    
+    <!-- DETECCIÓN DE DISPOSITIVO MÓVIL Y REDIRECCIÓN -->
+    <script>
+    (function() {
+        if (sessionStorage.getItem('rtbrok_redirect_lock')) return;
+    
+        function isMobile() {
+            const ua = (navigator.userAgent || navigator.vendor || window.opera || '').toLowerCase();
+            const uaMobile = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile/i.test(ua);
+            const narrowScreen = window.innerWidth <= 768;
+            const coarsePointer = window.matchMedia('(pointer: coarse)').matches;
+            return uaMobile || (narrowScreen && coarsePointer);
+        }
+    
+        function isMobilePage() {
+            const path = window.location.pathname.toLowerCase();
+            return /mobile\.html?$/.test(path) || /\/movil\/?$/.test(path) || /\/mobile\/?$/.test(path);
+        }
+    
+        if (!isMobilePage() && isMobile()) {
+            sessionStorage.setItem('rtbrok_redirect_lock', '1');
+            window.location.replace('mobile.html');
+            return;
+        }
+    })();
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js",
+                "firebase/auth": "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js"
+            }
+        }
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000000;
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.2);
+            border-radius: 0px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.4);
+        }
+        .modal-overlay {
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .pending-message-indicator {
+            animation: pulse-border 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse-border {
+            0%,
+            100% {
+                border-color: rgba(251, 191, 36, 0.2);
+            }
+            50% {
+                border-color: rgba(251, 191, 36, 0.6);
+            }
+        }
+        .artwork-card {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .artwork-card:hover {
+            transform: scale(1.02);
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.05);
+        }
+        .artwork-card .overlay {
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .artwork-card:hover .overlay {
+            opacity: 1;
+        }
+        .detail-modal {
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .detail-modal .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .detail-modal .modal-content::-webkit-scrollbar {
+            width: 4px;
+        }
+        .detail-modal .modal-content::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.3);
+            border-radius: 0px;
+        }
+        .detail-modal .modal-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .show-more-btn {
+            transition: all 0.3s ease;
+        }
+        .show-more-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0;
+        }
+        @media (min-width: 640px) {
+            .gallery-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+        @media (min-width: 1024px) {
+            .gallery-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+        .artwork-item {
+            aspect-ratio: 3 / 4;
+            overflow: hidden;
+            position: relative;
+            background: #0a0a0a;
+            border: 1px solid #0f0f0f;
+        }
+        .artwork-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        .artwork-item:hover img {
+            transform: scale(1.05);
+        }
+        .artwork-item .status-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(4px);
+            padding: 2px 10px;
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #a0a0a0;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .artwork-item .promotion-badge {
+            position: absolute;
+            top: 8px;
+            left: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 7px;
+            font-size: 9px;
+            font-weight: 600;
+            letter-spacing: 0.4px;
+            text-transform: uppercase;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+        }
+        .artwork-item .hover-info {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 12px;
+            background: linear-gradient(transparent, rgba(0,0,0,0.9));
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .artwork-item:hover .hover-info {
+            opacity: 1;
+        }
+        .artwork-item .hover-info .title {
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            margin-bottom: 2px;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .artwork-item .hover-info .sub {
+            font-size: 9px;
+            color: #e5e7eb;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .artwork-item .hover-info .meta {
+            font-size: 8px;
+            color: #cbd5e1;
+            line-height: 1.35;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .artwork-item .hover-info .meta span {
+            color: #93c5fd;
+            font-weight: 600;
+        }
+        .user-avatar-small {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,255,255,0.1);
+            object-fit: cover;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .user-avatar-small:hover {
+            border-color: rgba(255,255,255,0.3);
+        }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            margin-top: 16px;
+            color: #666;
+            font-size: 12px;
+            letter-spacing: 0.1em;
+        }
+
+        /* ===== PANEL DE TAREAS ESTILO BLOC DE NOTAS ===== */
+        .notepad-task-list {
+            counter-reset: task-counter;
+        }
+        .notepad-task-item {
+            counter-increment: task-counter;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            padding: 10px 12px 10px 38px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            transition: background 0.2s ease;
+            min-height: 48px;
+        }
+        .notepad-task-item::before {
+            content: counter(task-counter);
+            position: absolute;
+            left: 10px;
+            top: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #52525b;
+            font-family: 'Inter', monospace;
+            width: 18px;
+            text-align: right;
+        }
+        .notepad-task-item:hover {
+            background: rgba(255,255,255,0.02);
+        }
+        .notepad-task-item .task-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            flex-shrink: 0;
+        }
+        .notepad-task-item:hover .task-actions {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .notepad-task-item .task-text {
+            flex: 1;
+            min-width: 0;
+        }
+        .notepad-task-item .task-text .task-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: #e4e4e7;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .notepad-task-item .task-text .task-meta {
+            font-size: 10px;
+            color: #71717a;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .notepad-task-item .task-meta .resp {
+            color: #a1a1aa;
+        }
+
+        /* Botones de acción mini */
+        .mini-action-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 26px;
+            height: 26px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(255,255,255,0.03);
+            color: #a1a1aa;
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+        .mini-action-btn:hover {
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            border-color: rgba(255,255,255,0.2);
+        }
+        .mini-action-btn.start:hover {
+            color: #60a5fa;
+            border-color: rgba(96,165,250,0.4);
+        }
+        .mini-action-btn.review:hover {
+            color: #fbbf24;
+            border-color: rgba(251,191,36,0.4);
+        }
+        .mini-action-btn.approve:hover {
+            color: #34d399;
+            border-color: rgba(52,211,153,0.4);
+        }
+        .mini-action-btn.pause:hover {
+            color: #f87171;
+            border-color: rgba(248,113,113,0.4);
+        }
+
+        /* ===== TABS (ahora debajo, no flotantes) ===== */
+        .floating-tabs {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            background: rgba(9,9,11,0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 999px;
+            padding: 3px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+        }
+        .floating-tab {
+            padding: 5px 16px;
+            font-size: 11px;
+            font-weight: 500;
+            color: #71717a;
+            border-radius: 999px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            white-space: nowrap;
+        }
+        .floating-tab.active {
+            background: #fff;
+            color: #000;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(255,255,255,0.15);
+        }
+        .floating-tab:not(.active):hover {
+            color: #d4d4d8;
+            background: rgba(255,255,255,0.04);
+        }
+        .floating-add-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #4f46e5;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 16px rgba(79,70,229,0.4);
+            flex-shrink: 0;
+        }
+        .floating-add-btn:hover {
+            background: #6366f1;
+            transform: scale(1.08);
+            box-shadow: 0 6px 24px rgba(79,70,229,0.6);
+        }
+        .floating-add-btn:active {
+            transform: scale(0.96);
+        }
+
+        /* ===== MODAL NUEVA TAREA ESTILO GOOGLE DOCS ===== */
+        .docs-modal {
+            position: fixed;
+            inset: 0;
+            background: #0a0a0b;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            animation: docsFadeIn 0.25s ease;
+        }
+        @keyframes docsFadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .docs-modal.hidden {
+            display: none;
+        }
+        .docs-topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: rgba(9,9,11,0.9);
+            backdrop-filter: blur(12px);
+            flex-shrink: 0;
+            gap: 12px;
+        }
+        .docs-topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+            flex: 1;
+        }
+        .docs-topbar-left .logo {
+            font-size: 11px;
+            font-weight: 700;
+            color: #52525b;
+            letter-spacing: 0.15em;
+            flex-shrink: 0;
+        }
+        .docs-topbar-left .doc-title-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #f4f4f5;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: 'Inter', sans-serif;
+            padding: 2px 4px;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 320px;
+            transition: background 0.15s;
+        }
+        .docs-topbar-left .doc-title-input:hover {
+            background: rgba(255,255,255,0.04);
+        }
+        .docs-topbar-left .doc-title-input:focus {
+            background: rgba(255,255,255,0.06);
+            outline: 1px solid rgba(99,102,241,0.5);
+        }
+        .docs-topbar-left .doc-subtitle-input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #71717a;
+            font-size: 11px;
+            font-weight: 400;
+            font-family: 'Inter', sans-serif;
+            padding: 2px 4px;
+            border-radius: 4px;
+            width: 100%;
+            max-width: 280px;
+            transition: background 0.15s;
+        }
+        .docs-topbar-left .doc-subtitle-input:hover {
+            background: rgba(255,255,255,0.04);
+        }
+        .docs-topbar-left .doc-subtitle-input:focus {
+            background: rgba(255,255,255,0.06);
+            outline: 1px solid rgba(99,102,241,0.5);
+        }
+        .docs-topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .docs-btn {
+            padding: 6px 16px;
+            font-size: 11px;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: 'Inter', sans-serif;
+            white-space: nowrap;
+        }
+        .docs-btn.cancel {
+            background: transparent;
+            color: #a1a1aa;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .docs-btn.cancel:hover {
+            background: rgba(255,255,255,0.04);
+            color: #e4e4e7;
+        }
+        .docs-btn.create {
+            background: #4f46e5;
+            color: #fff;
+        }
+        .docs-btn.create:hover {
+            background: #6366f1;
+        }
+        .docs-btn.create:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .docs-param-bar {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            background: rgba(9,9,11,0.6);
+            flex-shrink: 0;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        .docs-param-bar::-webkit-scrollbar {
+            display: none;
+        }
+        .docs-param-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-right: 1px solid rgba(255,255,255,0.04);
+            flex-shrink: 0;
+        }
+        .docs-param-item:last-child {
+            border-right: none;
+        }
+        .docs-param-item label {
+            font-size: 9px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #52525b;
+            white-space: nowrap;
+        }
+        .docs-param-item select,
+        .docs-param-item input {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            color: #d4d4d8;
+            font-size: 11px;
+            font-family: 'Inter', sans-serif;
+            padding: 4px 8px;
+            border-radius: 4px;
+            outline: none;
+            transition: border-color 0.15s, background 0.15s;
+            min-width: 0;
+        }
+        .docs-param-item select:focus,
+        .docs-param-item input:focus {
+            border-color: rgba(99,102,241,0.6);
+            background: rgba(255,255,255,0.06);
+        }
+        .docs-param-item select option {
+            background: #18181b;
+            color: #e4e4e7;
+        }
+        .docs-param-item .param-badge {
+            font-size: 10px;
+            color: #818cf8;
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            white-space: nowrap;
+        }
+        .docs-body {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            justify-content: center;
+            padding: 40px 24px 80px;
+        }
+        .docs-page {
+            width: 100%;
+            max-width: 720px;
+            background: #0f0f11;
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 8px;
+            padding: 48px 56px;
+            min-height: 400px;
+            box-shadow: 0 4px 40px rgba(0,0,0,0.5);
+        }
+        .docs-page .docs-title-display {
+            font-size: 28px;
+            font-weight: 700;
+            color: #f4f4f5;
+            margin-bottom: 4px;
+            line-height: 1.2;
+            outline: none;
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            padding: 0;
+        }
+        .docs-page .docs-title-display::placeholder {
+            color: #3f3f46;
+        }
+        .docs-page .docs-subtitle-display {
+            font-size: 14px;
+            font-weight: 400;
+            color: #71717a;
+            margin-bottom: 32px;
+            outline: none;
+            border: none;
+            background: transparent;
+            width: 100%;
+            font-family: 'Inter', sans-serif;
+            padding: 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+            padding-bottom: 16px;
+        }
+        .docs-page .docs-subtitle-display::placeholder {
+            color: #3f3f46;
+        }
+        .docs-page .docs-content-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: #a1a1aa;
+            font-size: 13px;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.7;
+            resize: none;
+            min-height: 200px;
+            padding: 0;
+        }
+        .docs-page .docs-content-input::placeholder {
+            color: #3f3f46;
+        }
+        .docs-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            border-top: 1px solid rgba(255,255,255,0.04);
+            background: rgba(9,9,11,0.6);
+            flex-shrink: 0;
+            font-size: 10px;
+            color: #52525b;
+        }
+        .docs-footer .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #34d399;
+            display: inline-block;
+            margin-right: 6px;
+        }
+        @media (max-width: 640px) {
+            .docs-page {
+                padding: 24px 20px;
+            }
+            .docs-page .docs-title-display {
+                font-size: 22px;
+            }
+            .docs-param-bar {
+                padding: 0 8px;
+            }
+            .docs-param-item {
+                padding: 6px 8px;
+            }
+            .docs-param-item label {
+                font-size: 8px;
+            }
+            .docs-param-item select,
+            .docs-param-item input {
+                font-size: 10px;
+                padding: 3px 6px;
+            }
+        }
+
+        /* Dashboard Artbrok */
+        body { background: #070a0e !important; color: #f4f4f5; }
+        body > aside { width: 220px !important; padding: 20px 12px !important; align-items: stretch !important; background: #080b10 !important; border-right: 1px solid #1b2028; }
+        body > aside > div:first-child { align-items: stretch !important; gap: 10px !important; }
+        body > aside > div:first-child > div:first-child { width: auto !important; height: 58px !important; justify-content: flex-start !important; padding: 0 12px; font: 30px Georgia,serif !important; background: transparent !important; }
+        body > aside > div:first-child > div:first-child::after { content: 'rtbrok'; font: 30px Georgia,serif; margin-left: -4px; }
+        body > aside > div:first-child > a { flex-direction: row !important; gap: 12px !important; padding: 8px 10px; min-height: 48px; color: #d4d4d8 !important; }
+        body > aside > div:first-child > a:hover { background: #171a20; }
+        body > aside > div:first-child > a > div { width: 30px !important; height: 30px !important; background: transparent !important; box-shadow: none !important; }
+        body > aside > div:first-child > a span { font-size: 13px !important; text-align: left; }
+        body > aside > div:last-child { flex-direction: row !important; justify-content: space-between; padding: 10px; border-top: 1px solid #242830; }
+        body > div.flex-1.flex.flex-col { background: #070a0e !important; }
+        body > div.flex-1.flex.flex-col > header { min-height: 72px; padding: 12px 24px !important; background: #080b10; border-bottom: 1px solid #161b22; }
+        body > div.flex-1.flex.flex-col > header > div:first-child > h1 { display:none; }
+        body > div.flex-1.flex.flex-col > header > div:last-child { flex-direction: row; align-items: center; gap: 12px; }
+        body > div.flex-1.flex.flex-col > header #clock { font-size: 13px; }
+        body > div.flex-1.flex.flex-col > main { padding: 8px 12px !important; gap: 0 !important; }
+        .art-dashboard { padding: 0 0 20px; gap: 12px !important; }
+        .art-hero { min-height: 235px; position: relative; overflow: hidden; display:flex; align-items:flex-end; justify-content:space-between; padding:28px 30px; border:1px solid #20242a; border-radius:8px; background:linear-gradient(90deg,rgba(3,6,10,.79),rgba(3,6,10,.12) 75%),linear-gradient(0deg,rgba(3,6,10,.72),transparent 60%),url('Wallpaper.jpg') center 48%/cover; }
+        .art-hero-copy { position:relative; z-index:1; }
+        .art-eyebrow { color:#e4aa35; font-size:12px; font-weight:700; }
+        .art-hero h2 { margin:8px 0 0; color:#fff; font:clamp(40px,5vw,68px)/.95 Georgia,serif; letter-spacing:-2px; }
+        .art-hero h2 .brand-at { display:inline-grid; place-items:center; border:3px solid #fff; border-radius:50%; width:.9em; height:.9em; margin-right:2px; font-size:.82em; }
+        .art-hero-copy p { margin:6px 0 0 62px; font:20px Georgia,serif; color:#f4f4f5; }
+        .art-hero-actions { display:flex; align-items:center; gap:8px; position:relative; z-index:1; }
+        .art-action { min-height:45px; display:inline-flex; align-items:center; gap:9px; padding:0 15px; background:rgba(8,12,18,.86); border:1px solid #252a33; border-radius:6px; color:#f4f4f5; font-size:12px; font-weight:600; text-decoration:none; white-space:nowrap; }
+        .art-action svg { width:17px; height:17px; }
+        .art-action-gold { background:#a97836; border-color:#bd904e; }
+        .art-stats { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; }
+        .art-stat,.art-panel { background:#0d1117; border:1px solid #1a2029; border-radius:7px; }
+        .art-stat { display:flex; align-items:center; gap:14px; min-height:78px; padding:12px 15px; }
+        .stat-icon { width:42px;height:42px;display:grid;place-items:center;border-radius:50%;background:#171e27;color:#cbd5e1; }
+        .stat-icon svg { width:20px;height:20px; }.stat-icon.green{color:#10c89b;background:#0b2a27}.stat-icon.yellow{color:#facc15;background:#292414}.stat-icon.blue{color:#9bb7d8}.stat-icon.red{color:#fb4562;background:#28151d}
+        .art-stat small { display:block;color:#a5afbd;font-size:12px;margin-bottom:4px; }.art-stat strong{font-size:21px;font-weight:600;color:#f8fafc;}
+        .art-content-grid { display:grid;grid-template-columns:minmax(250px,.95fr) minmax(450px,1.8fr) minmax(250px,1fr);gap:10px;align-items:stretch; }
+        .art-panel { min-width:0;padding:14px; }.art-panel-heading { display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px; }.art-panel-heading h3{font-size:14px;font-weight:650;color:#f4f4f5;margin:0;}.art-panel-heading button{display:flex;align-items:center;gap:5px;color:#aab4c1;font-size:11px;white-space:nowrap}.art-panel-heading button svg{width:14px;height:14px}
+        .activity-list { display:flex;flex-direction:column;gap:9px; }.activity-item{display:grid;grid-template-columns:7px 54px 1fr;align-items:center;gap:10px;min-height:62px}.activity-item img{width:54px;height:54px;object-fit:cover;border-radius:6px;background:#171b21}.activity-item strong{display:block;color:#f4f4f5;font-size:12px}.activity-item p{margin:3px 0;color:#adb7c4;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.activity-item small{color:#788493;font-size:10px}.activity-dot{width:8px;height:8px;border-radius:50%;background:#a855f7}.dot-1{background:#00bd94}.dot-2{background:#facc15}.dot-3{background:#93a9c3}.dot-4{background:#fb4562}
+        .art-promo-grid { display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px; }.art-promo-grid .artwork-item{aspect-ratio: .77;border:0;border-radius:6px}.art-promo-grid .status-badge{display:none}.art-promo-grid .promotion-badge{top:auto;bottom:7px;left:7px;right:auto;padding:3px 6px;color:#facc15;background:rgba(0,0,0,.8)}.art-promo-grid .hover-info{opacity:1;padding:9px 8px;background:linear-gradient(transparent,rgba(0,0,0,.94))}.art-promo-grid .hover-info .title{font-size:11px}.art-promo-grid .hover-info .sub,.art-promo-grid .hover-info .meta{display:none}.art-dashboard #show-more-btn{display:none!important}
+        .art-catalog-list { display:flex;flex-direction:column;gap:8px;max-height:260px;overflow:auto; }.art-catalog-list .catalog-download-card{display:flex;align-items:center;gap:10px;padding:10px;background:#090d12;border:1px solid #1a2029;border-radius:6px}.art-catalog-list .catalog-download-card > div:first-child{flex:1}.art-catalog-list h4{font-size:12px}.art-catalog-list p{font-size:10px}.art-catalog-list .catalog-download-card > div:last-child{margin:0}.legacy-dashboard-runtime{display:none!important}
+        @media(max-width:1150px){body>aside{width:78px!important;padding:16px 8px!important;align-items:center!important}body>aside>div:first-child{align-items:center!important}body>aside>div:first-child>div:first-child{font-size:0!important;width:48px!important;justify-content:center!important}body>aside>div:first-child>div:first-child::after{font-size:19px}body>aside>div:first-child>a{flex-direction:column!important;padding:7px 3px;gap:3px!important}body>aside>div:first-child>a span{font-size:9px!important;text-align:center}.art-content-grid{grid-template-columns:minmax(220px,.8fr) minmax(400px,1.5fr)}.art-catalogs{grid-column:1/-1}.art-catalog-list{display:grid;grid-template-columns:repeat(3,1fr)}}
+        @media(max-width:760px){body>aside{display:none!important}.art-hero{min-height:260px;align-items:flex-start;flex-direction:column;padding:22px;background-position:center}.art-hero-actions{flex-wrap:wrap}.art-action{min-height:38px;padding:0 10px;font-size:10px}.art-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.art-stat:last-child{grid-column:1/-1}.art-content-grid{grid-template-columns:1fr}.art-catalogs{grid-column:auto}.art-catalog-list{display:flex}.art-promo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.art-promotions{grid-row:1}.activity-item{grid-template-columns:7px 54px 1fr}body>div.flex-1.flex.flex-col>header{padding:10px 14px!important}body>div.flex-1.flex.flex-col>header>div:last-child #current-date{display:none}}
+    </style>
+</head>
+<body class="h-full bg-black text-slate-100 flex overflow-hidden select-none">
+
+    <!-- Overlay de carga -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">VERIFICANDO SESIÓN</div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-20 bg-black flex flex-col items-center justify-between py-6 shrink-0 z-20">
+        <div class="flex flex-col items-center gap-6">
+            <div class="w-10 h-10 bg-zinc-900 flex items-center justify-center text-white font-bold text-xs shadow-inner cursor-pointer" onclick="switchTab('dashboard')">
+                @
+            </div>
+            <div class="w-8 h-[1px] bg-zinc-950"></div>
+            <a href="#" onclick="event.preventDefault(); switchTab('dashboard')" class="group flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition">
+                <div class="w-11 h-11 bg-zinc-900/40 group-hover:bg-zinc-900 flex items-center justify-center transition shadow-lg"><i data-lucide="house" class="w-5 h-5"></i></div>
+                <span class="text-[10px] font-medium tracking-tight">Inicio</span>
+            </a>
+            <a href="#" onclick="event.preventDefault(); switchTab('artworks')" class="group flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition">
+                <div class="w-11 h-11 bg-zinc-900/40 group-hover:bg-zinc-900 flex items-center justify-center transition shadow-lg"><i data-lucide="images" class="w-5 h-5"></i></div>
+                <span class="text-[10px] font-medium tracking-tight">Obras</span>
+            </a>
+            <a href="https://www.instagram.com/" target="_self" class="group flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition">
+                <div class="w-11 h-11 bg-zinc-900/40 group-hover:bg-zinc-900 flex items-center justify-center transition shadow-lg">
+                    <i class="fab fa-instagram fa-lg"></i>
+                </div>
+                <span class="text-[10px] font-medium tracking-tight">Instagram</span>
+            </a>
+
+
+            <a href="https://frontline-zeta-ecru.vercel.app/movil/" target="_self" class="group flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition text-center px-1">
+                <div class="w-11 h-11 bg-zinc-900/40 group-hover:bg-zinc-900 flex items-center justify-center transition shadow-lg">
+                    <i data-lucide="book-open" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[9px] font-medium tracking-tight leading-tight">Catálogos PDF</span>
+            </a>
+            <a href="https://docs.google.com/forms/d/e/1FAIpQLSdC-_if3uzNyq3BuU3YhlUD1ONInOwe4Cv_G4MM1PJrnsDRuw/viewform?usp=header" target="_self" class="group flex flex-col items-center gap-1.5 text-zinc-400 hover:text-white transition text-center px-1">
+                <div class="w-11 h-11 bg-zinc-900/40 group-hover:bg-zinc-900 flex items-center justify-center transition shadow-lg">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                </div>
+                <span class="text-[9px] font-medium tracking-tight leading-tight">Certificados</span>
+            </a>
+        </div>
+        <div class="flex flex-col items-center gap-4">
+            <div id="userAvatarContainer" class="hidden">
+                <img id="sidebarUserAvatar" src="" alt="User" class="user-avatar-small" onclick="handleUserClick()" title="Usuario autenticado">
+            </div>
+            <button onclick="openLoginModal()" class="w-10 h-10 bg-zinc-900/60 hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition" title="Configuración / Iniciar sesión">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+            </button>
+            <button onclick="prevPage()" class="w-10 h-10 bg-zinc-900/60 hover:bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white transition" title="Volver">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col h-full overflow-hidden bg-black relative">
+
+        <!-- Top Bar -->
+        <header class="w-full px-6 sm:px-10 py-5 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-4">
+                <h1 class="font-bold text-lg sm:text-xl tracking-[0.25em] bg-gradient-to-r from-white via-slate-200 to-slate-400 bg-clip-text text-transparent">R T B R O K</h1>
+                <div id="headerUserInfo" class="hidden text-xs text-zinc-400 pl-4">
+                    <span id="headerUserName" class="text-white font-medium">Usuario</span>
+                    <span class="text-zinc-500">·</span>
+                    <span id="headerUserEmail" class="text-zinc-500">email</span>
+                </div>
+            </div>
+            <div class="hidden md:flex items-center w-full max-w-md mx-6">
+                <form id="search-form" onsubmit="handleSearch(event)" class="relative flex items-center w-full">
+                    <span class="absolute left-3.5 text-zinc-500"><i data-lucide="search" class="w-4 h-4"></i></span>
+                    <input type="text" id="search-input" placeholder="Buscar..." class="w-full bg-zinc-900/80 pl-10 pr-20 py-2 text-xs text-slate-100 placeholder-zinc-500 focus:outline-none focus:bg-zinc-900 transition">
+                    <button type="submit" class="absolute right-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1 text-[10px] font-medium transition">Ir</button>
+                </form>
+            </div>
+            <div class="flex flex-col items-end">
+                <span id="current-date" class="text-[11px] text-zinc-400 capitalize font-medium">Jueves, 22 de Agosto</span>
+                <p id="clock" class="text-lg sm:text-xl text-slate-100 font-semibold tracking-tight">11:24</p>
+            </div>
+        </header>
+
+        <!-- Scrollable Main Body -->
+        <main class="flex-1 overflow-y-auto overflow-x-hidden flex flex-col w-full p-0 gap-8">
+
+            <!-- TAB: DASHBOARD -->
+            <div id="tab-dashboard" class="flex flex-col gap-3 w-full art-dashboard">
+                <section class="art-hero">
+                    <div class="art-hero-copy">
+                        <span class="art-eyebrow">BIENVENIDO</span>
+                        <h2><span class="brand-at">@</span>rtbrok</h2>
+                        <p>Private art broker</p>
+                    </div>
+                    <div class="art-hero-actions">
+                        <button onclick="switchTab('artworks')" class="art-action art-action-gold"><i data-lucide="plus"></i>Nueva obra</button>
+                        <a href="https://frontline-zeta-ecru.vercel.app/movil/" class="art-action"><i data-lucide="file-text"></i>Crear catálogo</a>
+                        <a href="https://docs.google.com/forms/d/e/1FAIpQLSdC-_if3uzNyq3BuU3YhlUD1ONInOwe4Cv_G4MM1PJrnsDRuw/viewform?usp=header" class="art-action"><i data-lucide="shield-check"></i>Generar certificado</a>
+                        <a href="https://www.instagram.com/" class="art-action"><i data-lucide="instagram"></i>Ir a Instagram</a>
+                    </div>
+                </section>
+
+                <section class="art-stats" aria-label="Resumen de obras">
+                    <div class="art-stat"><span class="stat-icon"><i data-lucide="image"></i></span><div><small>Obras registradas</small><strong id="stat-total">0</strong></div></div>
+                    <div class="art-stat"><span class="stat-icon green"><i data-lucide="circle-check"></i></span><div><small>Disponibles</small><strong id="stat-available">0</strong></div></div>
+                    <div class="art-stat"><span class="stat-icon yellow"><i data-lucide="megaphone"></i></span><div><small>En promoción</small><strong id="stat-promo">0</strong></div></div>
+                    <div class="art-stat"><span class="stat-icon blue"><i data-lucide="clock-3"></i></span><div><small>Reservadas</small><strong id="stat-reserved">0</strong></div></div>
+                    <div class="art-stat"><span class="stat-icon red"><i data-lucide="heart"></i></span><div><small>Vendidas este mes</small><strong id="stat-sold">0</strong></div></div>
+                </section>
+
+                <div class="art-content-grid">
+                    <section class="art-panel art-activity">
+                        <div class="art-panel-heading"><h3>Actividad reciente</h3><button onclick="switchTab('artworks')">Ver todas <i data-lucide="arrow-right"></i></button></div>
+                        <div id="dashboard-activity" class="activity-list"><p class="text-xs text-zinc-500">Cargando actividad...</p></div>
+                    </section>
+                    <section class="art-panel art-promotions">
+                        <div class="art-panel-heading"><h3>Obras en promoción</h3><button onclick="switchTab('artworks')">Ver todas <i data-lucide="arrow-right"></i></button></div>
+                        <div id="artworks-carousel" class="art-promo-grid"></div>
+                        <button id="show-more-btn" onclick="showMoreArtworks()" class="show-more-btn">Mostrar más obras <span id="total-artworks-count"></span></button>
+                    </section>
+                    <section class="art-panel art-catalogs">
+                        <div class="art-panel-heading"><h3>Catálogos recientes</h3><button onclick="switchTab('tasks')">Ver todos <i data-lucide="arrow-right"></i></button></div>
+                        <p id="dashboard-catalogs-count" class="sr-only"></p>
+                        <div id="dashboard-catalogs-list" class="art-catalog-list" aria-live="polite"><p class="text-xs text-zinc-500">Cargando catálogos...</p></div>
+                    </section>
+                </div>
+
+                <!-- Se conservan estos nodos para que los procesos existentes sigan funcionando. -->
+                <div class="legacy-dashboard-runtime" aria-hidden="true">
+                    <div id="widget-tasks-equipo-pane"></div><div id="widget-tasks-yo-pane"></div><div id="widget-tasks-yo-list"></div>
+                    <button id="widget-tab-equipo"></button><button id="widget-tab-yo"></button><button id="btn-add-task-equipo"></button>
+                    <div id="widget-chat-messages"></div><input id="widget-chat-input"><span id="chat-sender-display"></span>
+                    <div id="general-performance-bar-container"><div id="general-performance-bar"></div><div id="general-performance-legend"></div></div>
+                </div>
+            </div>
+
+            <!-- TAB: TASKS (Full View) -->
+            <div id="tab-tasks" class="w-full max-w-7xl mx-auto hidden flex-col gap-6 px-6 sm:px-8 py-8">
+                <div class="flex items-center justify-between bg-zinc-950 p-6 shadow-2xl">
+                    <div class="flex items-center gap-3">
+                        <div class="p-3 bg-zinc-900 text-zinc-200"><i data-lucide="check-square" class="w-5 h-5"></i></div>
+                        <div>
+                            <h2 class="font-bold text-base text-white">Gestión Completa de Tareas</h2>
+                            <p class="text-xs text-zinc-400">Base de datos centralizada de proyectos y subtareas</p>
+                        </div>
+                    </div>
+                    <button onclick="openAddTaskModal()" class="bg-white hover:bg-zinc-200 text-black px-4 py-2.5 text-xs font-semibold transition shadow flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Nueva tarea
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.65fr)_minmax(300px,0.85fr)] gap-6 items-start">
+                    <div class="bg-zinc-950 overflow-hidden p-6 shadow-2xl">
+                        <div id="tasks-table-container" class="space-y-3"></div>
+                    </div>
+                    <aside class="bg-zinc-950 p-5 shadow-2xl xl:sticky xl:top-6" aria-labelledby="catalogs-heading">
+                        <div class="flex items-start justify-between gap-3 pb-4">
+                            <div class="flex items-center gap-3">
+                                <div class="p-2.5 bg-violet-500/10 text-violet-300"><i data-lucide="book-open" class="w-4 h-4"></i></div>
+                                <div>
+                                    <h3 id="catalogs-heading" class="font-bold text-sm text-white">Catálogos</h3>
+                                    <p id="catalogs-count" class="text-[10px] text-zinc-500 mt-0.5">Cargando catálogos...</p>
+                                </div>
+                            </div>
+                            <button type="button" onclick="refreshCatalogs()" class="p-2 text-zinc-500 hover:text-white hover:bg-zinc-900 transition" title="Actualizar catálogos" aria-label="Actualizar catálogos">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div id="catalogs-list" class="mt-3 max-h-[calc(100vh-260px)] overflow-y-auto pr-1 space-y-2" aria-live="polite">
+                            <p class="text-xs text-zinc-500 text-center py-8">Cargando catálogos...</p>
+                        </div>
+                    </aside>
+                </div>
+            </div>
+
+            <!-- TAB: ARTWORKS (Full View) -->
+            <div id="tab-artworks" class="w-full hidden flex-col gap-6">
+                <div class="px-6 sm:px-8 pt-8 max-w-7xl mx-auto w-full">
+                    <div class="flex items-center justify-between bg-zinc-950 p-6 shadow-2xl">
+                        <div class="flex items-center gap-3">
+                            <div class="p-3 bg-zinc-900 text-zinc-200"><i data-lucide="image" class="w-5 h-5"></i></div>
+                            <div>
+                                <h2 class="font-bold text-base text-white">Generador y Catálogo de Obras</h2>
+                                <p class="text-xs text-zinc-400">Registros de obra, inventario y galerías visuales (Más recientes arriba)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="w-full pb-10">
+                    <div id="artworks-grid-container" class="gallery-grid w-full">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- MODAL: Detalles de Obra -->
+    <div id="artwork-detail-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-950 w-full max-w-4xl max-h-[90vh] overflow-y-auto detail-modal modal-content p-6 shadow-2xl">
+            <div class="flex items-start justify-between pb-4 mb-4">
+                <div>
+                    <h3 id="detail-title" class="font-bold text-lg text-white">Nombre de la Obra</h3>
+                    <p id="detail-subtitle" class="text-xs text-zinc-400 mt-0.5">Autor · Ubicación</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button id="toggle-artwork-promotion" type="button" onclick="toggleArtworkPromotion()" class="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium transition" aria-pressed="false">
+                        <i data-lucide="megaphone" class="w-4 h-4"></i>
+                        <span>Promocionar</span>
+                    </button>
+                    <button id="share-artwork-whatsapp" type="button" onclick="shareArtworkToWhatsApp()" class="inline-flex items-center gap-1.5 bg-emerald-950/40 px-3 py-2 text-xs font-medium text-emerald-300 transition hover:text-emerald-100" aria-label="Compartir obra por WhatsApp">
+                        <i data-lucide="share-2" class="w-4 h-4"></i>
+                        WhatsApp
+                    </button>
+                    <button onclick="closeArtworkDetail()" class="text-zinc-500 hover:text-white transition p-1" aria-label="Cerrar detalle de obra">
+                        <i data-lucide="x" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-zinc-900 overflow-hidden rounded-sm">
+                    <img id="detail-image" src="" alt="Obra" class="w-full h-auto object-cover max-h-[400px]">
+                </div>
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Estatus</p>
+                            <p id="detail-status" class="text-sm font-medium text-slate-200">-</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Tipo</p>
+                            <p id="detail-type" class="text-sm font-medium text-slate-200">-</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Superficie</p>
+                            <p id="detail-area" class="text-sm font-medium text-slate-200">-</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Precio</p>
+                            <p id="detail-price" class="text-sm font-medium text-emerald-400">-</p>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Medidas</p>
+                        <p id="detail-measures" class="text-sm text-slate-300">-</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Cliente</p>
+                        <p id="detail-client" class="text-sm text-slate-300">-</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Provenance</p>
+                        <p id="detail-provenance" class="text-sm text-slate-300">-</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Tags</p>
+                        <div id="detail-tags" class="flex flex-wrap gap-1.5 mt-1"></div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Observaciones</p>
+                        <p id="detail-observations" class="text-sm text-slate-300 italic">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-6 pt-4">
+                <div class="flex gap-6 text-xs">
+                    <div class="flex-1">
+                        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Documentos</p>
+                        <div id="detail-documents" class="mt-1 space-y-1"></div>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-[10px] text-zinc-500 uppercase tracking-wider">Adjuntos</p>
+                        <div id="detail-attachments" class="mt-1 space-y-1"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Seleccionar Remitente de Chat -->
+    <div id="chat-sender-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-950 w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+            <div class="flex items-center justify-between pb-4">
+                <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    <i data-lucide="user-check" class="w-4 h-4 text-white"></i>
+                    Seleccionar Remitente <span class="text-amber-400 text-xs font-normal">(Requerido)</span>
+                </h3>
+                <button onclick="closeChatSenderModal()" class="text-zinc-500 hover:text-white transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <button onclick="setChatSender('Isabel')" class="p-3.5 bg-zinc-900 hover:bg-zinc-800 text-slate-200 font-medium text-xs flex items-center gap-3 transition">
+                    <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">I</div>
+                    <span>Isabel</span>
+                </button>
+                <button onclick="setChatSender('Santiago')" class="p-3.5 bg-zinc-900 hover:bg-zinc-800 text-slate-200 font-medium text-xs flex items-center gap-3 transition">
+                    <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">S</div>
+                    <span>Santiago</span>
+                </button>
+                <button onclick="setChatSender('Diego')" class="p-3.5 bg-zinc-900 hover:bg-zinc-800 text-slate-200 font-medium text-xs flex items-center gap-3 transition">
+                    <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">D</div>
+                    <span>Diego</span>
+                </button>
+                <button onclick="setChatSender('José Manuel')" class="p-3.5 bg-zinc-900 hover:bg-zinc-800 text-slate-200 font-medium text-xs flex items-center gap-3 transition">
+                    <div class="w-8 h-8 bg-zinc-800 flex items-center justify-center text-white font-bold text-xs">JM</div>
+                    <span>José Manuel</span>
+                </button>
+            </div>
+            <div id="pending-message-container" class="hidden">
+                <div class="pending-message-indicator text-xs text-amber-400 bg-amber-500/10 p-2 rounded flex items-center gap-2">
+                    <i data-lucide="message-square" class="w-3 h-3"></i>
+                    <span id="pending-message-text">Mensaje pendiente de enviar</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Identificar Responsable para Acción de Estado -->
+    <div id="action-login-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-950 w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+            <div class="flex items-center justify-between pb-4">
+                <div>
+                    <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                        <i data-lucide="user-check" class="w-4 h-4 text-indigo-400"></i> Identificar Responsable
+                    </h3>
+                    <p class="text-[11px] text-slate-400 mt-0.5">Selecciona tu usuario para confirmar la actualización</p>
+                </div>
+                <button onclick="closeActionLoginModal()" class="text-zinc-500 hover:text-white transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="action-users-list" class="flex flex-col gap-2 max-h-64 overflow-y-auto pr-1">
+                <div class="text-center text-zinc-500 text-xs py-4">Cargando responsables...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Login / Selección de Director -->
+    <div id="login-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-950 w-full max-w-md p-6 shadow-2xl flex flex-col gap-5">
+            <div class="flex items-center justify-between pb-4">
+                <h3 class="font-bold text-sm text-slate-100 flex items-center gap-2">
+                    <i data-lucide="shield" class="w-4 h-4 text-white"></i> Iniciar Sesión
+                </h3>
+                <button onclick="closeLoginModal()" class="text-zinc-500 hover:text-white transition"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+
+            <div id="firebaseUserOption" class="hidden flex flex-col gap-2">
+                <p class="text-xs text-zinc-400">Sesión activa con Google:</p>
+                <div class="flex items-center gap-3 p-3 bg-zinc-900 rounded-sm">
+                    <img id="modalUserAvatar" src="" alt="avatar" class="w-9 h-9 rounded-full">
+                    <div class="flex-1 min-w-0">
+                        <p id="modalUserName" class="text-sm font-medium text-white truncate">Usuario</p>
+                        <p id="modalUserEmail" class="text-xs text-zinc-400 truncate">email</p>
+                    </div>
+                    <button onclick="useFirebaseUser()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 transition rounded-sm">
+                        Usar
+                    </button>
+                </div>
+                <button onclick="logoutFirebase()" class="text-xs text-rose-400 hover:text-rose-300 transition text-center py-1">
+                    Cerrar sesión de Google
+                </button>
+            </div>
+
+            <div class="relative" id="authSeparator">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-zinc-800/60"></div>
+                </div>
+                <div class="relative flex justify-center text-xs">
+                    <span class="px-3 bg-zinc-950 text-zinc-500">o</span>
+                </div>
+            </div>
+
+            <div id="login-users-list" class="flex flex-col gap-2 max-h-60 overflow-y-auto">
+                <div class="text-center text-zinc-500 text-xs py-4">Cargando usuarios...</div>
+            </div>
+
+            <div class="mt-2 pt-3">
+                <button onclick="goToLoginPage()" class="w-full text-xs text-zinc-400 hover:text-white transition py-2 flex items-center justify-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                        <polyline points="10 17 15 12 10 7"/>
+                        <line x1="15" y1="12" x2="3" y2="12"/>
+                    </svg>
+                    Iniciar sesión con Google
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================ -->
+    <!-- MODAL: NUEVA TAREA - ESTILO GOOGLE DOCS (PANTALLA COMPLETA) -->
+    <!-- ============================================================ -->
+    <div id="docs-task-modal" class="docs-modal hidden">
+        <div class="docs-topbar">
+            <div class="docs-topbar-left">
+                <span class="logo">RTBROK</span>
+                <div class="flex flex-col min-w-0">
+                    <input type="text" id="docs-task-title" class="doc-title-input" placeholder="Título de la tarea" autocomplete="off">
+                    <input type="text" id="docs-task-subtitle" class="doc-subtitle-input" placeholder="Subtítulo o descripción breve" autocomplete="off">
+                </div>
+            </div>
+            <div class="docs-topbar-right">
+                <button onclick="closeDocsTaskModal()" class="docs-btn cancel">Cancelar</button>
+                <button onclick="confirmDocsTask()" id="docs-create-btn" class="docs-btn create">
+                    <i data-lucide="plus" class="w-3.5 h-3.5 inline-block mr-1"></i> Crear tarea
+                </button>
+            </div>
+        </div>
+
+        <div class="docs-param-bar">
+            <div class="docs-param-item">
+                <label>Proyecto</label>
+                <select id="docs-project-select">
+                    <option value="">Selecciona...</option>
+                </select>
+            </div>
+            <div class="docs-param-item">
+                <label>Subproyecto</label>
+                <select id="docs-subproject-select" disabled>
+                    <option value="">Primero proyecto</option>
+                </select>
+            </div>
+            <div class="docs-param-item">
+                <label>Responsable</label>
+                <select id="docs-responsible-select">
+                    <option value="">Selecciona...</option>
+                </select>
+            </div>
+            <div class="docs-param-item">
+                <label>Prioridad</label>
+                <select id="docs-priority-select">
+                    <option value="baja">Baja</option>
+                    <option value="media" selected>Media</option>
+                    <option value="alta">Alta</option>
+                    <option value="urgente">Urgente</option>
+                </select>
+            </div>
+            <div class="docs-param-item">
+                <label>Fecha límite</label>
+                <input type="date" id="docs-deadline-input">
+            </div>
+            <div class="docs-param-item">
+                <label>Creado por</label>
+                <span id="docs-auth-user" class="param-badge">—</span>
+            </div>
+        </div>
+
+        <div class="docs-body">
+            <div class="docs-page">
+                <input type="text" id="docs-page-title" class="docs-title-display" placeholder="Título de la tarea" autocomplete="off">
+                <input type="text" id="docs-page-subtitle" class="docs-subtitle-display" placeholder="Descripción breve" autocomplete="off">
+                <textarea id="docs-page-content" class="docs-content-input" placeholder="Escribe aquí los detalles de la tarea...&#10;&#10;• Paso 1&#10;• Paso 2&#10;• Notas adicionales"></textarea>
+            </div>
+        </div>
+
+        <div class="docs-footer">
+            <div class="flex items-center gap-2">
+                <span class="status-dot"></span>
+                <span id="docs-footer-status">Listo para crear</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span>RTBROK Workspace</span>
+                <span id="docs-footer-date"></span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // ============================================================
+        // FIREBASE AUTH
+        // ============================================================
+        import { initializeApp } from 'firebase/app';
+        import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD1g7Y77PR2Wdylb05M2Kxz-DCKt4kNLXo",
+            authDomain: "rtbrok-auth.firebaseapp.com",
+            projectId: "rtbrok-auth",
+            storageBucket: "rtbrok-auth.firebasestorage.app",
+            messagingSenderId: "778465907066",
+            appId: "1:778465907066:web:6831c57e3bdb6dded8c6c3",
+            measurementId: "G-1Z2X1293ZN"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        let firebaseUser = null;
+        let isFirebaseUser = false;
+        let authChecked = false;
+
+        // ============================================================
+        // CONFIGURACIÓN
+        // ============================================================
+        const ENDPOINT_TASKS = 'https://script.google.com/macros/s/AKfycbxmPBIboe_Evn45ZHjtkjydbmlPRMuSax_sEiTc2iN8cqqi2i4-Pf_lOd6875cQXEd_yg/exec';
+        const ENDPOINT_ARTWORKS = 'https://script.google.com/macros/s/AKfycbxyBzZ7duM3pKtobXHj8A2NgFpIarP5WPS71TKTH2uFMOXXL8rzo68-blixF8kgCwvl8w/exec';
+        const ENDPOINT_CHAT = 'https://script.google.com/macros/s/AKfycbzU6YqBsWekqjP-SOV1_LCV_GQnO1ZX9Gl0Th-U2dwTx2yJe0x1MmmnovRwT0qAYui6/exec';
+        const ENDPOINT_CATALOGS = 'https://script.google.com/macros/s/AKfycbx1wIgADNvhYVbo9nNduz-jtz9s1pkvsZGXL3r6rmfjcWK0NWLFLHuw9zE5B21PF2OXow/exec';
+        const CHAT_API_URL = 'https://bot-yy1q.onrender.com/send';
+
+        // ============================================================
+        // ESTADO GLOBAL
+        // ============================================================
+        let appData = {
+            tasks: [],
+            artworks: [],
+            proyectos: [],
+            subproyectos: [],
+            responsables: [],
+            catalogs: [],
+            comisiones: [],
+            messages: []
+        };
+
+        let localTasks = JSON.parse(localStorage.getItem('rtbrok_local_tasks') || '[]');
+        let currentChatSender = localStorage.getItem('rtbrok_chat_sender') || null;
+        let pendingChatMessage = null;
+        let taskFlow = { authenticatedUser: null };
+        let pendingStatusChange = null;
+        let pendingArtworkPromotion = null;
+        const tabsOrder = ['dashboard', 'tasks', 'artworks'];
+        let currentTabIdx = 0;
+
+        const INITIAL_ARTWORKS = 12;
+        const ARTWORKS_PER_PAGE = 12;
+        let displayedArtworksCount = INITIAL_ARTWORKS;
+
+        // ============================================================
+        // INICIO
+        // ============================================================
+        window.onload = function() {
+            const overlay = document.getElementById('loadingOverlay');
+            overlay.classList.remove('hidden');
+
+            const savedUser = sessionStorage.getItem('firebaseUser');
+            if (savedUser) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    firebaseUser = userData;
+                    isFirebaseUser = true;
+                    updateUserUI(userData);
+                } catch (e) {}
+            }
+
+            onAuthStateChanged(auth, (user) => {
+                authChecked = true;
+
+                if (user) {
+                    const userData = {
+                        uid: user.uid,
+                        displayName: user.displayName,
+                        email: user.email,
+                        photoURL: user.photoURL,
+                        emailVerified: user.emailVerified
+                    };
+                    firebaseUser = userData;
+                    isFirebaseUser = true;
+                    sessionStorage.setItem('firebaseUser', JSON.stringify(userData));
+                    updateUserUI(userData);
+                    overlay.classList.add('hidden');
+                    initApp();
+                } else {
+                    firebaseUser = null;
+                    isFirebaseUser = false;
+
+                    const savedUser = sessionStorage.getItem('firebaseUser');
+                    if (savedUser) {
+                        try {
+                            const userData = JSON.parse(savedUser);
+                            firebaseUser = userData;
+                            isFirebaseUser = true;
+                            updateUserUI(userData);
+                            overlay.classList.add('hidden');
+                            initApp();
+                            return;
+                        } catch (e) {}
+                    }
+
+                    sessionStorage.removeItem('firebaseUser');
+                    updateUserUI(null);
+                    window.location.href = 'login.html';
+                }
+            });
+
+            setTimeout(() => {
+                if (!authChecked) {
+                    window.location.href = 'login.html';
+                }
+            }, 3000);
+        };
+
+        function initApp() {
+            initClock();
+            updateChatSenderUI();
+            fetchAllData();
+            setInterval(fetchChatMessages, 8000);
+            renderLocalTasks();
+
+            const savedLocalUser = sessionStorage.getItem('currentUser');
+            if (savedLocalUser) {
+                try {
+                    taskFlow.authenticatedUser = JSON.parse(savedLocalUser);
+                } catch (e) {}
+            }
+
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('current-date').textContent = now.toLocaleDateString('es-ES', options);
+
+            const deadlineInput = document.getElementById('docs-deadline-input');
+            if (deadlineInput) {
+                const today = new Date();
+                const weekLater = new Date(today);
+                weekLater.setDate(today.getDate() + 7);
+                deadlineInput.value = weekLater.toISOString().split('T')[0];
+            }
+            const footerDate = document.getElementById('docs-footer-date');
+            if (footerDate) {
+                footerDate.textContent = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+            }
+        }
+
+        // ============================================================
+        // USUARIO FIREBASE
+        // ============================================================
+        function updateUserUI(user) {
+            const avatarContainer = document.getElementById('userAvatarContainer');
+            const sidebarAvatar = document.getElementById('sidebarUserAvatar');
+            const headerInfo = document.getElementById('headerUserInfo');
+            const headerName = document.getElementById('headerUserName');
+            const headerEmail = document.getElementById('headerUserEmail');
+
+            if (user) {
+                avatarContainer.classList.remove('hidden');
+                sidebarAvatar.src = user.photoURL || 'https://ui-avatars.com/api/?background=2d2d2d&color=fff&size=32&name=' + encodeURIComponent(user.displayName || 'User');
+                sidebarAvatar.title = user.displayName || 'Usuario';
+
+                headerInfo.classList.remove('hidden');
+                headerName.textContent = user.displayName || 'Usuario';
+                headerEmail.textContent = user.email || '';
+
+                const modalAvatar = document.getElementById('modalUserAvatar');
+                const modalName = document.getElementById('modalUserName');
+                const modalEmail = document.getElementById('modalUserEmail');
+                if (modalAvatar) modalAvatar.src = user.photoURL || 'https://ui-avatars.com/api/?background=2d2d2d&color=fff&size=36&name=' + encodeURIComponent(user.displayName || 'User');
+                if (modalName) modalName.textContent = user.displayName || 'Usuario';
+                if (modalEmail) modalEmail.textContent = user.email || '';
+
+                document.getElementById('firebaseUserOption').classList.remove('hidden');
+                document.getElementById('authSeparator').classList.remove('hidden');
+            } else {
+                avatarContainer.classList.add('hidden');
+                headerInfo.classList.add('hidden');
+                document.getElementById('firebaseUserOption').classList.add('hidden');
+                document.getElementById('authSeparator').classList.add('hidden');
+            }
+        }
+
+        window.handleUserClick = function() {
+            if (firebaseUser) {
+                openLoginModal();
+            } else {
+                goToLoginPage();
+            }
+        };
+
+        window.goToLoginPage = function() {
+            sessionStorage.setItem('autoRedirect', 'true');
+            window.location.href = 'login.html';
+        };
+
+        window.useFirebaseUser = function() {
+            if (firebaseUser) {
+                const userData = {
+                    id: firebaseUser.uid,
+                    nombre: firebaseUser.displayName || 'Usuario Firebase',
+                    email: firebaseUser.email || '',
+                    rol: 'director'
+                };
+                taskFlow.authenticatedUser = userData;
+                sessionStorage.setItem('currentUser', JSON.stringify(userData));
+                closeLoginModal();
+                showNotification(`Sesión iniciada como ${userData.nombre}`);
+            }
+        };
+
+        window.logoutFirebase = function() {
+            signOut(auth).then(() => {
+                sessionStorage.removeItem('firebaseUser');
+                sessionStorage.removeItem('currentUser');
+                showNotification('Sesión cerrada');
+                updateUserUI(null);
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 500);
+            }).catch((error) => {
+                console.error('Error al cerrar sesión:', error);
+            });
+        };
+
+        // ============================================================
+        // RELOJ
+        // ============================================================
+        function initClock() {
+            setInterval(() => {
+                const now = new Date();
+                let hours = now.getHours();
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                hours = hours % 12 || 12;
+                document.getElementById('clock').innerText = `${hours}:${minutes}`;
+            }, 1000);
+        }
+
+        // ============================================================
+        // NAVEGACIÓN
+        // ============================================================
+        window.switchTab = function(tabName) {
+            currentTabIdx = tabsOrder.indexOf(tabName);
+            if (currentTabIdx === -1) currentTabIdx = 0;
+            tabsOrder.forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                if (t === tabName) {
+                    el.classList.replace('hidden', 'flex');
+                } else {
+                    el.classList.replace('flex', 'hidden');
+                }
+            });
+            lucide.createIcons();
+            if (tabName === 'artworks') {
+                renderFullArtworksGrid();
+            }
+        };
+
+        window.nextPage = function() {
+            switchTab(tabsOrder[(currentTabIdx + 1) % tabsOrder.length]);
+        };
+
+        window.prevPage = function() {
+            switchTab(tabsOrder[(currentTabIdx - 1 + tabsOrder.length) % tabsOrder.length]);
+        };
+
+        // ============================================================
+        // TAREAS - TABS
+        // ============================================================
+        window.switchTaskWidgetTab = function(tab) {
+            const btnEq = document.getElementById('widget-tab-equipo');
+            const btnYo = document.getElementById('widget-tab-yo');
+            const paneEq = document.getElementById('widget-tasks-equipo-pane');
+            const paneYo = document.getElementById('widget-tasks-yo-pane');
+            const addBtn = document.getElementById('btn-add-task-equipo');
+
+            if (tab === 'equipo') {
+                btnEq.classList.add('active');
+                btnYo.classList.remove('active');
+                paneEq.classList.replace('hidden', 'flex');
+                paneYo.classList.replace('flex', 'hidden');
+                if (addBtn) addBtn.style.display = 'flex';
+            } else {
+                btnYo.classList.add('active');
+                btnEq.classList.remove('active');
+                paneYo.classList.replace('hidden', 'flex');
+                paneEq.classList.replace('flex', 'hidden');
+                if (addBtn) addBtn.style.display = 'none';
+            }
+            lucide.createIcons();
+        };
+
+        // ============================================================
+        // TAREAS PERSONALES
+        // ============================================================
+        window.addLocalTask = function() {
+            const input = document.getElementById('new-local-task-input');
+            const text = input.value.trim();
+            if (!text) return;
+            localTasks.push({ id: Date.now(), text, completed: false });
+            localStorage.setItem('rtbrok_local_tasks', JSON.stringify(localTasks));
+            input.value = '';
+            renderLocalTasks();
+        };
+
+        window.toggleLocalTask = function(id) {
+            localTasks = localTasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t);
+            localStorage.setItem('rtbrok_local_tasks', JSON.stringify(localTasks));
+            renderLocalTasks();
+        };
+
+        window.deleteLocalTask = function(id) {
+            localTasks = localTasks.filter(t => t.id !== id);
+            localStorage.setItem('rtbrok_local_tasks', JSON.stringify(localTasks));
+            renderLocalTasks();
+        };
+
+        function renderLocalTasks() {
+            const container = document.getElementById('widget-tasks-yo-list');
+            if (!localTasks || localTasks.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 text-center py-6">No tienes tareas personales. Añade una arriba.</p>`;
+                return;
+            }
+            container.innerHTML = localTasks.map(t => `
+                <div class="flex items-center justify-between p-3 hover:bg-zinc-900/60 transition">
+                    <div class="flex items-center gap-3 overflow-hidden cursor-pointer" onclick="toggleLocalTask(${t.id})">
+                        <input type="checkbox" ${t.completed ? 'checked' : ''} class="border-zinc-700 bg-zinc-900 text-indigo-600 focus:ring-0 cursor-pointer">
+                        <span class="text-xs text-slate-200 truncate ${t.completed ? 'line-through text-slate-500' : ''}">${t.text}</span>
+                    </div>
+                    <button onclick="deleteLocalTask(${t.id})" class="text-slate-500 hover:text-rose-400 transition p-1"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // ============================================================
+        // UTILIDADES
+        // ============================================================
+        function getResponsableNameById(responsableId) {
+            if (!responsableId) return 'Sin asignar';
+            const responsable = appData.responsables.find(r => r.id === responsableId);
+            return responsable ? responsable.nombre : 'Desconocido';
+        }
+
+        function getProvenanceNameById(provenanceId) {
+            const commission = appData.comisiones.find(item => String(item.id).trim() === String(provenanceId || '').trim());
+            return commission?.provenance || 'No especificado';
+        }
+
+        function getStatusBadgeColor(estatus) {
+            switch ((estatus || '').toLowerCase()) {
+                case 'completado':
+                case 'completada':
+                    return 'bg-emerald-500/10 text-emerald-400';
+                case 'en_curso':
+                    return 'bg-blue-500/10 text-blue-400';
+                case 'en_revision':
+                    return 'bg-amber-500/10 text-amber-400';
+                case 'bloqueada':
+                    return 'bg-rose-500/10 text-rose-400';
+                default:
+                    return 'bg-zinc-800 text-slate-400';
+            }
+        }
+
+        function getStatusDotColor(estatus) {
+            switch ((estatus || '').toLowerCase()) {
+                case 'completado':
+                case 'completada':
+                    return 'bg-emerald-400 shadow-lg shadow-emerald-400/50';
+                case 'en_curso':
+                    return 'bg-blue-400 shadow-lg shadow-blue-400/50';
+                case 'en_revision':
+                    return 'bg-amber-400 shadow-lg shadow-amber-400/50';
+                case 'bloqueada':
+                    return 'bg-rose-400 shadow-lg shadow-rose-400/50';
+                default:
+                    return 'bg-slate-400';
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function resolveImageUrl(adjuntos, fallbackName) {
+            if (Array.isArray(adjuntos) && adjuntos.length > 0 && adjuntos[0].url) {
+                let rawUrl = adjuntos[0].url;
+                if (rawUrl.includes('drive.google.com')) {
+                    const matchId = rawUrl.match(/\/d\/([a-zA-Z0-9_-]+)/) || rawUrl.match(/id=([a-zA-Z0-9_-]+)/);
+                    if (matchId && matchId[1]) return `https://lh3.googleusercontent.com/d/${matchId[1]}=w800`;
+                }
+                return rawUrl;
+            }
+            return `https://placehold.co/400x400/18181b/71717a?text=${encodeURIComponent(fallbackName || 'Obra')}`;
+        }
+
+        function showNotification(message) {
+            const existing = document.querySelector('.rtbrok-notification');
+            if (existing) existing.remove();
+
+            const div = document.createElement('div');
+            div.className = 'rtbrok-notification fixed bottom-4 left-1/2 -translate-x-1/2 bg-zinc-900 px-6 py-3 shadow-2xl z-[100] flex items-center gap-3';
+            div.innerHTML = `
+                <span class="text-indigo-400"><i data-lucide="check-circle" class="w-5 h-5"></i></span>
+                <span class="text-sm text-slate-200">${message}</span>
+            `;
+            document.body.appendChild(div);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                div.style.opacity = '0';
+                div.style.transition = 'opacity 0.3s';
+                setTimeout(() => div.remove(), 300);
+            }, 3000);
+        }
+
+        window.handleSearch = function(e) {
+            e.preventDefault();
+            const q = document.getElementById('search-input').value.trim();
+            if (q) window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+        };
+
+        // ============================================================
+        // FETCH DATA
+        // ============================================================
+        async function fetchAllData() {
+            try {
+                const [resT, resA, resC] = await Promise.all([
+                    fetch(ENDPOINT_TASKS).catch(() => null),
+                    fetch(ENDPOINT_ARTWORKS).catch(() => null),
+                    fetch(`${ENDPOINT_CATALOGS}?action=list`).catch(() => null)
+                ]);
+
+                if (resT) {
+                    const dataB = await resT.json();
+                    appData.tasks = dataB.tareas || getMockTasks();
+                    appData.proyectos = dataB.proyectos || [];
+                    appData.subproyectos = dataB.subproyectos || [];
+                    appData.responsables = dataB.responsables || [];
+                } else {
+                    appData.tasks = getMockTasks();
+                    appData.proyectos = [];
+                    appData.subproyectos = [];
+                    appData.responsables = [];
+                }
+
+                if (resA) {
+                    const dataA = await resA.json();
+                    appData.artworks = dataA.registrosObra || dataA.data || getMockArtworks();
+                    appData.comisiones = dataA.comisiones || [];
+                } else {
+                    appData.artworks = getMockArtworks();
+                    appData.comisiones = [];
+                }
+
+                await setCatalogsFromResponse(resC);
+
+                renderDashboardWidgets();
+                renderTasksTable();
+                renderArtworksCarousel();
+                renderFullArtworksGrid();
+                renderGeneralPerformanceBar();
+                renderCatalogsList();
+                fetchChatMessages();
+                lucide.createIcons();
+            } catch (e) {
+                appData.tasks = getMockTasks();
+                appData.artworks = getMockArtworks();
+                appData.comisiones = [];
+                appData.catalogs = [];
+                renderDashboardWidgets();
+                renderTasksTable();
+                renderArtworksCarousel();
+                renderFullArtworksGrid();
+                renderGeneralPerformanceBar();
+                renderCatalogsList('No fue posible cargar los catálogos.');
+            }
+        }
+
+        async function setCatalogsFromResponse(response) {
+            if (!response) {
+                appData.catalogs = [];
+                return;
+            }
+            try {
+                const payload = await response.json();
+                if (payload.status !== 'success' || !Array.isArray(payload.data)) {
+                    throw new Error(payload.message || 'Respuesta no válida');
+                }
+                appData.catalogs = payload.data;
+            } catch (error) {
+                console.error('Error al cargar catálogos:', error);
+                appData.catalogs = [];
+            }
+        }
+
+        function renderCatalogsList(errorMessage = '') {
+            const container = document.getElementById('catalogs-list');
+            const count = document.getElementById('catalogs-count');
+            if (!container || !count) return;
+
+            if (errorMessage) {
+                count.textContent = 'No disponible';
+                container.innerHTML = `<p class="text-xs text-rose-400 text-center py-8">${escapeHtml(errorMessage)}</p>`;
+                syncDashboardCatalogs(container, count);
+                return;
+            }
+
+            const catalogs = Array.isArray(appData.catalogs) ? appData.catalogs : [];
+            count.textContent = catalogs.length === 1 ? '1 catálogo' : `${catalogs.length} catálogos`;
+            if (!catalogs.length) {
+                container.innerHTML = '<p class="text-xs text-zinc-500 text-center py-8">No hay catálogos disponibles.</p>';
+                syncDashboardCatalogs(container, count);
+                return;
+            }
+
+            container.innerHTML = catalogs.map(catalog => {
+                const works = Number(catalog.selectedWorksCount) || 0;
+                const artist = catalog.config?.artistName || '';
+                return `
+                    <button type="button" data-catalog-id="${escapeHtml(catalog.id)}" class="catalog-download-card w-full text-left bg-black/50 p-3 hover:bg-violet-500/[0.04] transition focus:outline-none focus:ring-1 focus:ring-violet-400">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-semibold text-slate-100 truncate" title="${escapeHtml(catalog.title || 'Catálogo sin título')}">${escapeHtml(catalog.title || 'Catálogo sin título')}</h4>
+                                ${artist ? `<p class="text-[10px] text-violet-300 mt-1 truncate">${escapeHtml(artist)}</p>` : ''}
+                            </div>
+                            <span class="shrink-0 text-[10px] text-zinc-400 bg-zinc-900 px-1.5 py-0.5">${works} ${works === 1 ? 'obra' : 'obras'}</span>
+                        </div>
+                        <div class="flex items-center justify-between gap-2 mt-2">
+                            ${catalog.date ? `<p class="text-[10px] text-zinc-500">Actualizado: ${escapeHtml(catalog.date)}</p>` : '<span></span>'}
+                            <span class="text-[10px] text-violet-300 flex items-center gap-1"><i data-lucide="download" class="w-3 h-3"></i> PDF</span>
+                        </div>
+                    </button>
+                `;
+            }).join('');
+            container.querySelectorAll('.catalog-download-card').forEach(card => {
+                card.addEventListener('click', () => downloadCatalogPdf(card.dataset.catalogId));
+            });
+            syncDashboardCatalogs(container, count);
+            lucide.createIcons();
+        }
+
+        function syncDashboardCatalogs(source, sourceCount) {
+            const dashboardList = document.getElementById('dashboard-catalogs-list');
+            const dashboardCount = document.getElementById('dashboard-catalogs-count');
+            if (!dashboardList || !dashboardCount) return;
+            dashboardList.innerHTML = source.innerHTML;
+            dashboardCount.textContent = sourceCount.textContent;
+            dashboardList.querySelectorAll('.catalog-download-card').forEach(card => {
+                card.addEventListener('click', () => downloadCatalogPdf(card.dataset.catalogId));
+            });
+            lucide.createIcons();
+        }
+
+        window.refreshCatalogs = async function() {
+            const container = document.getElementById('catalogs-list');
+            const count = document.getElementById('catalogs-count');
+            if (container) container.innerHTML = '<p class="text-xs text-zinc-500 text-center py-8">Actualizando catálogos...</p>';
+            if (count) count.textContent = 'Actualizando...';
+
+            const response = await fetch(`${ENDPOINT_CATALOGS}?action=list`).catch(() => null);
+            await setCatalogsFromResponse(response);
+            if (!response) {
+                renderCatalogsList('No fue posible cargar los catálogos.');
+                return;
+            }
+            renderCatalogsList();
+        };
+
+        async function imageToDataUrl(url) {
+            if (!url || url.includes('placehold.co')) return null;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const blob = await response.blob();
+                return await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function catalogArtworkData(artwork, image) {
+            const dimensions = [artwork.ancho, artwork.alto, artwork.largo]
+                .filter(value => value !== undefined && value !== null && value !== '')
+                .join(' x ');
+            const price = Number(artwork.precio_lista) || 0;
+            return {
+                image,
+                title: artwork.nombre_obra || artwork.title || 'SIN TÍTULO',
+                artist: artwork.autor || artwork.artist || '',
+                medium: artwork.tipo_obra || artwork.medium || '',
+                dimensions: dimensions ? `${dimensions} cm` : '',
+                price: price ? `$${price.toLocaleString('en-US')} ${artwork.tipo_moneda || 'MXN'}` : '',
+                location: artwork.ubicacion || artwork.location || '',
+                provider: artwork.provenance || artwork.proveedor || '',
+                code: artwork.clave || artwork.codigo || artwork.id || ''
+            };
+        }
+
+        function getArtworkRecords(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (Array.isArray(payload?.registrosObra)) return payload.registrosObra;
+            if (Array.isArray(payload?.obras)) return payload.obras;
+            if (Array.isArray(payload?.data)) return payload.data;
+            if (Array.isArray(payload?.data?.registrosObra)) return payload.data.registrosObra;
+            if (Array.isArray(payload?.data?.obras)) return payload.data.obras;
+            return [];
+        }
+
+        async function fetchCatalogArtworks(selectedIds) {
+            const response = await fetch(`${ENDPOINT_ARTWORKS}?endpoint=obras`, { cache: 'no-store' });
+            if (!response.ok) throw new Error('No fue posible consultar las obras del catálogo.');
+            const records = getArtworkRecords(await response.json());
+            const byId = new Map(records.map(artwork => [String(artwork.id || '').trim(), artwork]));
+            return selectedIds
+                .map(id => byId.get(String(id).trim()))
+                .filter(Boolean);
+        }
+
+        async function createCatalogPdf(artworks, config) {
+            const Pdf = window.jspdf?.jsPDF;
+            if (!Pdf) throw new Error('La librería para crear el PDF no está disponible.');
+
+            const doc = new Pdf('p', 'mm', 'a4');
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const titleY = 120;
+            const artistName = config.artistName || config.title || 'CATÁLOGO';
+
+            doc.setDrawColor(225, 225, 225);
+            doc.rect(15, 15, pageWidth - 30, pageHeight - 30);
+            doc.setTextColor(20, 20, 20);
+            doc.setFont('times', 'normal');
+            doc.setFontSize(28);
+            doc.text(artistName.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: 'center' });
+            doc.setFontSize(10);
+            doc.text((config.subtitle || 'OBRA SELECCIONADA').toUpperCase().split('').join(' '), pageWidth / 2, titleY + 15, { align: 'center' });
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.text((config.updateText || config.date || '').toUpperCase(), pageWidth / 2, pageHeight - 40, { align: 'center' });
+            if (config.legalNote) {
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(8);
+                doc.setTextColor(110);
+                doc.text(doc.splitTextToSize(config.legalNote, 160), pageWidth / 2, pageHeight - 25, { align: 'center' });
+            }
+
+            const artworksPerPage = 1;
+            for (let i = 0; i < artworks.length; i += artworksPerPage) {
+                doc.addPage();
+                const art = artworks[i];
+                const margin = 20;
+                const imageMaxW = pageWidth - (margin * 2) - 10;
+                const imageMaxH = 190;
+                const imageX = (pageWidth - imageMaxW) / 2;
+                const imageY = margin;
+
+                if (art.image) {
+                    try {
+                        const image = new Image();
+                        image.src = art.image;
+                        await new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
+                        const imageRatio = image.width / image.height;
+                        const boxRatio = imageMaxW / imageMaxH;
+                        const renderW = imageRatio > boxRatio ? imageMaxW : imageMaxH * imageRatio;
+                        const renderH = imageRatio > boxRatio ? imageMaxW / imageRatio : imageMaxH;
+                        doc.addImage(art.image, undefined, imageX + (imageMaxW - renderW) / 2, imageY + (imageMaxH - renderH) / 2, renderW, renderH, undefined, 'FAST');
+                    } catch (_) {
+                        doc.setFillColor(245, 247, 250);
+                        doc.rect(imageX, imageY, imageMaxW, imageMaxH, 'F');
+                    }
+                } else {
+                    doc.setFillColor(245, 247, 250);
+                    doc.rect(imageX, imageY, imageMaxW, imageMaxH, 'F');
+                    doc.setTextColor(150);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(8);
+                    doc.text('IMAGEN NO DISPONIBLE', pageWidth / 2, imageY + imageMaxH / 2, { align: 'center' });
+                }
+
+                const infoY = imageY + imageMaxH + 12;
+                doc.setTextColor(20, 20, 20);
+                doc.setFont('times', 'bold');
+                doc.setFontSize(13);
+                doc.text(art.title.toUpperCase(), pageWidth / 2, infoY, { align: 'center', maxWidth: 165 });
+                if (art.artist) {
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.setTextColor(100);
+                    doc.text(art.artist.toUpperCase(), pageWidth / 2, infoY + 8, { align: 'center' });
+                }
+                const metadata = [];
+                if (config.showFicha && art.medium) metadata.push(art.medium);
+                if (config.showDims && art.dimensions) metadata.push(art.dimensions);
+                if (config.showPrices && art.price) metadata.push(art.price);
+                if (config.showLocation && art.location) metadata.push(art.location);
+                if (config.showProveedor && art.provider) metadata.push(`PROV: ${art.provider}`);
+                if (art.code) metadata.push(art.code);
+                if (metadata.length) {
+                    doc.setFontSize(7);
+                    doc.setTextColor(90);
+                    doc.text(doc.splitTextToSize(metadata.join(' | ').toUpperCase(), 165), pageWidth / 2, infoY + 16, { align: 'center' });
+                }
+                doc.setFontSize(6);
+                doc.setTextColor(170);
+                doc.text(`PÁGINA ${i + 1} DE ${artworks.length}`, pageWidth / 2, pageHeight - 10, { align: 'center' });
+            }
+            return doc;
+        }
+
+        async function downloadCatalogPdf(catalogId) {
+            if (!catalogId) return;
+            const card = [...document.querySelectorAll('.catalog-download-card')]
+                .find(element => element.dataset.catalogId === catalogId);
+            const original = card?.innerHTML;
+            if (card) {
+                card.disabled = true;
+                card.classList.add('opacity-60', 'cursor-wait');
+                card.innerHTML = '<span class="text-xs text-violet-300 flex items-center justify-center gap-2 py-5"><i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i> Generando PDF...</span>';
+                lucide.createIcons();
+            }
+
+            try {
+                const response = await fetch(`${ENDPOINT_CATALOGS}?action=get&id=${encodeURIComponent(catalogId)}`);
+                const payload = await response.json();
+                if (payload.status !== 'success' || !payload.data) throw new Error(payload.message || 'No se encontró el catálogo.');
+                const catalog = payload.data;
+                const selectedIds = Array.isArray(catalog.selectedIds) ? catalog.selectedIds : [];
+                if (!selectedIds.length) throw new Error('Este catálogo no tiene obras asignadas.');
+                const selectedArtworks = await fetchCatalogArtworks(selectedIds);
+                if (!selectedArtworks.length) {
+                    const idsPreview = selectedIds.slice(0, 2).join(', ');
+                    throw new Error(`Las ${selectedIds.length} obras del catálogo no existen en el endpoint de obras actual (ej.: ${idsPreview}).`);
+                }
+
+                const processedArtworks = [];
+                for (const artwork of selectedArtworks) {
+                    const imageUrl = resolveImageUrl(artwork.adjuntos, artwork.nombre_obra || artwork.title);
+                    processedArtworks.push(catalogArtworkData(artwork, await imageToDataUrl(imageUrl)));
+                }
+                const cfg = catalog.config || {};
+                const doc = await createCatalogPdf(processedArtworks, {
+                    title: catalog.title,
+                    date: catalog.date,
+                    artistName: cfg.artistName,
+                    subtitle: cfg.subtitle,
+                    updateText: cfg.updateText,
+                    legalNote: cfg.legalNote,
+                    showPrices: cfg.cfgPrices,
+                    showDims: cfg.cfgDims,
+                    showLocation: cfg.cfgLocation,
+                    showProveedor: cfg.cfgProveedor,
+                    showFicha: cfg.cfgFicha
+                });
+                const fileName = `CATALOGO_${(catalog.title || cfg.artistName || 'RTBROK').replace(/[^a-z0-9áéíóúñ_-]+/gi, '_')}.pdf`;
+                doc.save(fileName);
+                const missingWorks = selectedIds.length - selectedArtworks.length;
+                showNotification(missingWorks
+                    ? `PDF generado con ${selectedArtworks.length} de ${selectedIds.length} obras disponibles.`
+                    : 'PDF generado y descargado.');
+            } catch (error) {
+                console.error('Error generando PDF del catálogo:', error);
+                showNotification(error.message || 'No fue posible generar el PDF.');
+            } finally {
+                if (card && original) {
+                    card.disabled = false;
+                    card.classList.remove('opacity-60', 'cursor-wait');
+                    card.innerHTML = original;
+                    lucide.createIcons();
+                }
+            }
+        }
+
+        // ============================================================
+        // CHAT
+        // ============================================================
+        async function fetchChatMessages() {
+            try {
+                const res = await fetch(`${ENDPOINT_CHAT}?action=getMessages`);
+                const messages = await res.json();
+                if (Array.isArray(messages) && messages.length > 0) {
+                    appData.messages = messages;
+                } else {
+                    throw new Error('Empty');
+                }
+            } catch (e) {
+                appData.messages = [
+                    { timestamp: new Date().toISOString(), user: 'RTBROK', message: 'Nueva obra agregada al catálogo.' },
+                    { timestamp: new Date().toISOString(), user: 'Galería S14', message: '¿Podemos agendar una reunión?' },
+                    { timestamp: new Date().toISOString(), user: 'Coleccionista', message: 'Interesado en la obra "Sin título".' }
+                ];
+            }
+            renderChatMessages();
+        }
+
+        function renderChatMessages() {
+            const container = document.getElementById('widget-chat-messages');
+            if (!container) return;
+
+            container.innerHTML = appData.messages.map((m) => {
+                const isMe = m.user === currentChatSender || m.user === 'RTBROK';
+                return `
+                    <div class="flex flex-col ${isMe && m.user !== 'Galería S14' && m.user !== 'Coleccionista' ? 'items-end' : 'items-start'} gap-0.5 px-2">
+                        <div class="text-[9px] text-zinc-500 font-medium flex items-center gap-1.5">
+                            ${m.user}
+                            ${m.sending ? '<span class="text-amber-400 text-[8px] animate-pulse">● Enviando...</span>' : ''}
+                            ${m.error ? '<span class="text-rose-400 text-[8px]">● Error</span>' : ''}
+                        </div>
+                        <div class="max-w-[85%] px-3 py-2 text-xs ${isMe && m.user !== 'Galería S14' && m.user !== 'Coleccionista' ? 'bg-zinc-900 text-slate-100' : 'bg-zinc-900/60 text-slate-300'}">
+                            ${m.message}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        window.sendWidgetChatMessage = async function() {
+            const input = document.getElementById('widget-chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            if (!currentChatSender) {
+                pendingChatMessage = message;
+                openChatSenderModal();
+                input.placeholder = 'Selecciona un remitente primero...';
+                input.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+                return;
+            }
+
+            input.placeholder = 'Escribe un mensaje...';
+            input.style.borderColor = '';
+
+            const formattedMessage = `[${currentChatSender}]: ${message}`;
+
+            try {
+                const encodedMessage = encodeURIComponent(formattedMessage);
+                const url = `${CHAT_API_URL}?number=120363406622431210@g.us&message=${encodedMessage}`;
+
+                const tempMessage = {
+                    timestamp: new Date().toISOString(),
+                    user: currentChatSender,
+                    message: message,
+                    sending: true
+                };
+                appData.messages.push(tempMessage);
+                renderChatMessages();
+
+                await fetch(url, { method: 'GET', mode: 'no-cors' });
+
+                input.value = '';
+
+                const lastMessageIndex = appData.messages.length - 1;
+                if (appData.messages[lastMessageIndex] && appData.messages[lastMessageIndex].sending) {
+                    appData.messages[lastMessageIndex].sending = false;
+                    renderChatMessages();
+                }
+
+                try {
+                    const chatPayload = {
+                        action: 'sendMessage',
+                        user: currentChatSender,
+                        message: message
+                    };
+                    await fetch(ENDPOINT_CHAT, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(chatPayload)
+                    });
+                } catch (e) {
+                    console.log('Mensaje enviado mediante API.');
+                }
+
+            } catch (error) {
+                console.error('Error al enviar mensaje:', error);
+                const lastMessage = appData.messages[appData.messages.length - 1];
+                if (lastMessage) {
+                    lastMessage.error = true;
+                    lastMessage.sending = false;
+                    renderChatMessages();
+                }
+            }
+        };
+
+        window.setChatSender = function(name) {
+            currentChatSender = name;
+            localStorage.setItem('rtbrok_chat_sender', name);
+            closeChatSenderModal();
+            updateChatSenderUI();
+
+            const input = document.getElementById('widget-chat-input');
+            if (input) {
+                input.placeholder = 'Escribe un mensaje...';
+                input.style.borderColor = '';
+            }
+
+            if (pendingChatMessage) {
+                const message = pendingChatMessage;
+                pendingChatMessage = null;
+                const pendingContainer = document.getElementById('pending-message-container');
+                if (pendingContainer) pendingContainer.classList.add('hidden');
+
+                setTimeout(() => {
+                    const input = document.getElementById('widget-chat-input');
+                    if (input) {
+                        input.value = message;
+                        sendWidgetChatMessage();
+                    }
+                }, 100);
+            }
+        };
+
+        window.openChatSenderModal = function() {
+            const modal = document.getElementById('chat-sender-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const pendingContainer = document.getElementById('pending-message-container');
+            const pendingText = document.getElementById('pending-message-text');
+
+            if (pendingChatMessage) {
+                pendingContainer.classList.remove('hidden');
+                pendingText.textContent = `"${pendingChatMessage.substring(0, 40)}${pendingChatMessage.length > 40 ? '...' : ''}"`;
+            } else {
+                pendingContainer.classList.add('hidden');
+            }
+
+            lucide.createIcons();
+        };
+
+        window.closeChatSenderModal = function() {
+            document.getElementById('chat-sender-modal').classList.add('hidden');
+            document.getElementById('chat-sender-modal').classList.remove('flex');
+
+            if (pendingChatMessage) {
+                const input = document.getElementById('widget-chat-input');
+                if (input && !input.value) {
+                    input.value = pendingChatMessage;
+                    input.placeholder = 'Selecciona un remitente...';
+                    input.style.borderColor = 'rgba(251, 191, 36, 0.5)';
+                    pendingChatMessage = null;
+                }
+            }
+
+            const pendingContainer = document.getElementById('pending-message-container');
+            if (pendingContainer) pendingContainer.classList.add('hidden');
+        };
+
+        function updateChatSenderUI() {
+            const displayElement = document.getElementById('chat-sender-display');
+            if (displayElement) {
+                displayElement.textContent = currentChatSender || 'Sin seleccionar';
+                displayElement.className = currentChatSender ? 'text-indigo-400 font-medium' : 'text-amber-400 font-medium';
+            }
+        }
+
+        // ============================================================
+        // TAREAS - ACCIONES DE ESTADO
+        // ============================================================
+        window.requestStatusChange = function(taskId, newStatus) {
+            pendingStatusChange = { taskId, newStatus };
+            if (!taskFlow.authenticatedUser) {
+                openActionLoginModal();
+            } else {
+                executeStatusChange(taskId, newStatus, taskFlow.authenticatedUser);
+            }
+        };
+
+        window.openActionLoginModal = function() {
+            const container = document.getElementById('action-users-list');
+            if (!container) return;
+
+            if (appData.responsables.length === 0) {
+                container.innerHTML = `<div class="text-center text-zinc-500 text-xs py-4">Cargando responsables...</div>`;
+            } else {
+                const users = pendingArtworkPromotion
+                    ? appData.responsables.filter(r => ['director', 'supervisor'].includes((r.rol || '').toLowerCase()))
+                    : appData.responsables;
+                container.innerHTML = users.length ? users.map(r => `
+                    <button onclick="selectUserForAction('${r.id}', '${r.nombre}', '${r.rol || 'responsable'}')"
+                            class="flex items-center gap-3 p-3 bg-zinc-900 hover:bg-zinc-800 transition w-full text-left">
+                        <div class="w-9 h-9 bg-indigo-600/30 flex items-center justify-center text-indigo-400 font-bold text-xs">
+                            ${r.nombre ? r.nombre.charAt(0).toUpperCase() : '?'}
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-slate-200">${r.nombre || 'Sin nombre'}</p>
+                            <p class="text-[10px] text-slate-400">${r.email || ''} ${r.rol ? '• ' + r.rol : ''}</p>
+                        </div>
+                        <span class="ml-auto text-[10px] px-2 py-0.5 bg-zinc-800 text-slate-300 font-medium uppercase">${r.rol || 'User'}</span>
+                    </button>
+                `).join('') : `<div class="text-center text-zinc-500 text-xs py-4">No hay supervisores ni directores disponibles.</div>`;
+            }
+
+            const modal = document.getElementById('action-login-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        };
+
+        window.closeActionLoginModal = function() {
+            const modal = document.getElementById('action-login-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            pendingStatusChange = null;
+            pendingArtworkPromotion = null;
+        };
+
+        window.selectUserForAction = function(id, nombre, rol) {
+            taskFlow.authenticatedUser = { id, nombre, rol };
+            sessionStorage.setItem('currentUser', JSON.stringify({ id, name: nombre, role: rol }));
+
+            const authDisplay = document.getElementById('auth-user-display');
+            if (authDisplay) authDisplay.textContent = `${nombre} (${rol})`;
+
+            const statusChange = pendingStatusChange;
+            const promotionRequest = pendingArtworkPromotion;
+            closeActionLoginModal();
+
+            if (statusChange) {
+                const { taskId, newStatus } = statusChange;
+                executeStatusChange(taskId, newStatus, taskFlow.authenticatedUser);
+            }
+            if (promotionRequest) {
+                executeArtworkPromotion(promotionRequest.artworkId, promotionRequest.promocionar, taskFlow.authenticatedUser);
+            }
+        };
+
+        async function executeStatusChange(taskId, newStatus, user) {
+            const tarea = appData.tasks.find(t => t.id === taskId);
+            if (!tarea) return;
+
+            const oldStatus = tarea.estatus;
+            tarea.estatus = newStatus;
+
+            renderDashboardWidgets();
+            renderTasksTable();
+            renderGeneralPerformanceBar();
+
+            showNotification(`Actualizado por ${user.nombre}: ${oldStatus || 'pendiente'} ➔ ${newStatus}`);
+
+            try {
+                await fetch(ENDPOINT_TASKS, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'tarea_update',
+                        data: tarea
+                    })
+                });
+            } catch (e) {
+                console.error('Error actualizando estado en servidor:', e);
+            }
+        }
+
+        // ============================================================
+        // RENDER: TAREAS - PANEL REDISEÑADO (SOLO EN CURSO, LISTA NUMERADA)
+        // ============================================================
+        function renderDashboardWidgets() {
+            updateDashboardOverview();
+            const tasksContainer = document.getElementById('widget-tasks-equipo-pane');
+
+            const inProgressTasks = [...appData.tasks]
+                .filter(t => (t.estatus || '').toLowerCase() === 'en_curso')
+                .sort((a, b) => {
+                    const dateA = a.fecha_registro ? new Date(a.fecha_registro) : new Date(0);
+                    const dateB = b.fecha_registro ? new Date(b.fecha_registro) : new Date(0);
+                    return dateB - dateA;
+                });
+
+            if (inProgressTasks.length === 0) {
+                tasksContainer.innerHTML = `<p class="text-xs text-slate-500 text-center py-8">No hay tareas en curso.</p>`;
+            } else {
+                let html = inProgressTasks.map(t => {
+                    const responsableName = getResponsableNameById(t.id_responsable);
+                    const st = (t.estatus || 'pendiente').toLowerCase();
+
+                    let actionButtons = '';
+                    if (st === 'en_curso') {
+                        actionButtons = `
+                            <button onclick="event.stopPropagation(); requestStatusChange('${t.id}', 'pendiente')" class="mini-action-btn pause" title="Pausar">
+                                <i data-lucide="pause" class="w-3 h-3"></i>
+                            </button>
+                            <button onclick="event.stopPropagation(); requestStatusChange('${t.id}', 'en_revision')" class="mini-action-btn review" title="Enviar a revisión">
+                                <i data-lucide="file-search" class="w-3 h-3"></i>
+                            </button>
+                        `;
+                    }
+
+                    return `
+                        <div class="notepad-task-item" title="${escapeHtml(t.detalles || t.descripcion || '')}">
+                            <div class="task-text">
+                                <div class="task-title">${escapeHtml(t.detalles || t.descripcion || 'Sin descripción')}</div>
+                                <div class="task-meta">
+                                    <span>${escapeHtml(t.asignacion || 'S/A')}</span>
+                                    <span> · </span>
+                                    <span class="resp">${escapeHtml(responsableName)}</span>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                ${actionButtons}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                tasksContainer.innerHTML = html;
+                lucide.createIcons();
+            }
+        }
+
+        function renderTasksTable() {
+            const container = document.getElementById('tasks-table-container');
+            if (appData.tasks.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-500 text-center py-10">No se encontraron tareas.</p>`;
+                return;
+            }
+            container.innerHTML = appData.tasks.map(t => {
+                const responsableName = getResponsableNameById(t.id_responsable);
+                const st = (t.estatus || 'pendiente').toLowerCase();
+
+                let actionButtons = '';
+                if (st === 'pendiente') {
+                    actionButtons =
+                        `<button onclick="requestStatusChange('${t.id}', 'en_curso')" class="px-2.5 py-1 text-xs font-semibold bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 transition flex items-center gap-1"><i data-lucide="play" class="w-3.5 h-3.5"></i> Iniciar</button>`;
+                } else if (st === 'en_curso') {
+                    actionButtons = `
+                        <div class="flex items-center gap-1">
+                            <button onclick="requestStatusChange('${t.id}', 'pendiente')" class="px-2 py-1 text-xs font-medium bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition" title="Pausar"><i data-lucide="pause" class="w-3.5 h-3.5"></i></button>
+                            <button onclick="requestStatusChange('${t.id}', 'en_revision')" class="px-2.5 py-1 text-xs font-semibold bg-amber-600/20 hover:bg-amber-600/40 text-amber-400 transition flex items-center gap-1"><i data-lucide="file-search" class="w-3.5 h-3.5"></i> Enviar a revisión</button>
+                        </div>
+                    `;
+                } else if (st === 'en_revision') {
+                    actionButtons =
+                        `<button onclick="requestStatusChange('${t.id}', 'completado')" class="px-2.5 py-1 text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 transition flex items-center gap-1"><i data-lucide="check" class="w-3.5 h-3.5"></i> Aprobar</button>`;
+                }
+
+                return `
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-4 bg-black hover:bg-zinc-900/40 transition">
+                        <div class="flex items-start gap-3">
+                            <div class="p-2 bg-cyan-500/10 text-cyan-400 mt-0.5"><i data-lucide="check-circle" class="w-4 h-4"></i></div>
+                            <div>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="font-mono text-xs text-cyan-400 font-bold">${t.asignacion || 'S/A'}</span>
+                                    <span class="text-[10px] text-slate-400">Responsable: <span class="text-slate-300">${responsableName}</span></span>
+                                    <span class="text-xs px-2 py-0.5 ${getStatusBadgeColor(t.estatus)}">${t.estatus || 'pendiente'}</span>
+                                </div>
+                                <h4 class="text-sm font-semibold text-slate-100 mt-1">${t.detalles || 'Sin detalles'}</h4>
+                                <p class="text-xs text-slate-400 mt-0.5">${t.descripcion || ''}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4 text-xs text-slate-400 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0">
+                            <span>Límite: <strong class="text-slate-200">${t.fecha_limite || 'N/A'}</strong></span>
+                            ${actionButtons}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            lucide.createIcons();
+        }
+
+        // ============================================================
+        // RENDER: RENDIMIENTO
+        // ============================================================
+        function renderGeneralPerformanceBar() {
+            const barContainer = document.getElementById('general-performance-bar');
+            const legendContainer = document.getElementById('general-performance-legend');
+
+            const completedTasks = appData.tasks.filter(t => {
+                const st = (t.estatus || '').toLowerCase();
+                return st === 'completado' || st === 'completada';
+            });
+
+            const countsMap = {};
+            completedTasks.forEach(t => {
+                const respName = getResponsableNameById(t.id_responsable);
+                countsMap[respName] = (countsMap[respName] || 0) + 1;
+            });
+
+            let entries = Object.entries(countsMap);
+            if (entries.length === 0) {
+                entries = [
+                    ['Isabel', 4],
+                    ['Santiago', 3],
+                    ['Diego', 2],
+                    ['José Manuel', 3]
+                ];
+            }
+
+            const total = entries.reduce((acc, curr) => acc + curr[1], 0) || 1;
+            const colors = ['bg-orange-500', 'bg-purple-600', 'bg-amber-400', 'bg-blue-500', 'bg-emerald-500', 'bg-rose-500'];
+
+            let barHtml = '';
+            let legendHtml = '';
+
+            entries.forEach(([name, count], index) => {
+                const pct = ((count / total) * 100).toFixed(1);
+                const colorClass = colors[index % colors.length];
+                const dotColorHex = ['#f97316', '#9333ea', '#fbbf24', '#3b82f6', '#10b981', '#f43f5e'][index % colors.length];
+
+                barHtml += `<div class="${colorClass} h-full transition-all duration-500" style="width: ${pct}%;" title="${name}: ${pct}% (${count} tareas)"></div>`;
+                legendHtml += `
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 rounded-full inline-block" style="background-color: ${dotColorHex};"></span>
+                        <span class="font-medium text-slate-200">${name}</span>
+                        <span class="text-zinc-400">${pct}%</span>
+                    </div>
+                `;
+            });
+
+            barContainer.innerHTML = barHtml;
+            legendContainer.innerHTML = legendHtml;
+        }
+
+        // ============================================================
+        // RENDER: ARTWORKS
+        // ============================================================
+        function updateDashboardOverview() {
+            const artworks = Array.isArray(appData.artworks) ? appData.artworks : [];
+            const setStat = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            setStat('stat-total', artworks.length);
+            setStat('stat-available', artworks.filter(a => /disponible|bodega|consolidaci/i.test(a.estatus || '')).length);
+            setStat('stat-promo', artworks.filter(a => a.promocionar === true || String(a.promocionar).toLowerCase() === 'true').length);
+            setStat('stat-reserved', artworks.filter(a => /reserv/i.test(a.estatus || '')).length);
+            const now = new Date();
+            setStat('stat-sold', artworks.filter(a => {
+                if (!/vendid/i.test(a.estatus || '')) return false;
+                const date = new Date(a.fecha_venta || a.fecha_registro || 0);
+                return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+            }).length);
+
+            const activity = document.getElementById('dashboard-activity');
+            if (activity) {
+                const recent = [...artworks].sort((a, b) => new Date(b.fecha_registro || 0) - new Date(a.fecha_registro || 0)).slice(0, 5);
+                activity.innerHTML = recent.length ? recent.map((a, i) => {
+                    const img = resolveImageUrl(a.adjuntos, a.nombre_obra);
+                    const label = (a.promocionar === true || String(a.promocionar).toLowerCase() === 'true') ? 'Obra en promoción' : 'Obra registrada';
+                    return `<article class="activity-item"><span class="activity-dot dot-${i % 5}"></span><img src="${img}" alt="" onerror="this.onerror=null;this.src='https://placehold.co/80x80/18181b/71717a?text=Obra'"><div><strong>${escapeHtml(label)}</strong><p>${escapeHtml(a.nombre_obra || 'Obra sin título')}</p><small>${escapeHtml(a.autor || a.fecha_registro || '')}</small></div></article>`;
+                }).join('') : '<p class="text-xs text-zinc-500">No hay actividad reciente.</p>';
+            }
+        }
+
+        function renderArtworksCarousel() {
+            const container = document.getElementById('artworks-carousel');
+            if (!container) return;
+
+            const allArtworks = [...appData.artworks];
+            const promoted = allArtworks.filter(a => a.promocionar === true || String(a.promocionar).toLowerCase() === 'true');
+            const sortedArtworks = (promoted.length ? promoted : allArtworks).sort((a, b) => {
+                const dateA = a.fecha_registro ? new Date(a.fecha_registro) : new Date(0);
+                const dateB = b.fecha_registro ? new Date(b.fecha_registro) : new Date(0);
+                return dateB - dateA;
+            });
+
+            const toShow = sortedArtworks.slice(0, Math.min(displayedArtworksCount, 4));
+
+            container.innerHTML = toShow.map(a => {
+                const imgUrl = resolveImageUrl(a.adjuntos, a.nombre_obra);
+                const adjCount = Array.isArray(a.adjuntos) ? a.adjuntos.length : 0;
+                const statusColor = {
+                    'Consolidación': 'border-amber-500/30 text-amber-400',
+                    'Bodega': 'border-blue-500/30 text-blue-400',
+                    'Vendida': 'border-emerald-500/30 text-emerald-400'
+                } [a.estatus] || 'border-zinc-500/30 text-zinc-400';
+                const technique = a.tecnica || a.tipo_obra || 'No especificado';
+                const provenance = getProvenanceNameById(a.provenance);
+
+                return `
+                    <div class="artwork-item artwork-card" onclick="openArtworkDetail('${a.id}')">
+                        <img src="${imgUrl}" alt="${a.nombre_obra || 'Obra'}" loading="lazy"
+                             onerror="this.onerror=null; this.src='https://placehold.co/400x400/18181b/71717a?text=Obra';">
+                        <div class="status-badge ${statusColor}">${a.estatus || 'Consolidación'}</div>
+                        <div class="promotion-badge ${a.promocionar ? 'border border-fuchsia-400/40 text-fuchsia-200' : 'border border-zinc-700 text-zinc-400'}">
+                            <i data-lucide="${a.promocionar ? 'megaphone' : 'megaphone-off'}" class="w-3 h-3"></i>
+                            ${a.promocionar ? 'Promocionar' : 'Sin promoción'}
+                        </div>
+                        <div class="hover-info">
+                            <div class="title">${a.nombre_obra || 'Sin título'}</div>
+                            <div class="sub">${a.autor || 'Autor desconocido'} · ${a.ubicacion || ''}</div>
+                            <div class="meta"><span>Técnica:</span> ${technique}</div>
+                            <div class="meta"><span>Provenance:</span> ${provenance}</div>
+                        </div>
+                        ${adjCount > 0 ? `<div class="absolute top-9 left-2 bg-indigo-600/80 backdrop-blur px-1.5 py-0.5 text-[9px] text-white flex items-center gap-1"><i data-lucide="paperclip" class="w-3 h-3"></i> ${adjCount}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            const totalCount = document.getElementById('total-artworks-count');
+            if (totalCount) {
+                const total = sortedArtworks.length;
+                const shown = Math.min(displayedArtworksCount, total);
+                totalCount.textContent = `(${shown} de ${total} obras)`;
+            }
+
+            const showBtn = document.getElementById('show-more-btn');
+            if (showBtn) {
+                if (displayedArtworksCount >= sortedArtworks.length) {
+                    showBtn.style.display = 'none';
+                } else {
+                    showBtn.style.display = 'flex';
+                }
+            }
+
+            lucide.createIcons();
+            updateDashboardOverview();
+        }
+
+        window.showMoreArtworks = function() {
+            displayedArtworksCount += ARTWORKS_PER_PAGE;
+            renderArtworksCarousel();
+            renderFullArtworksGrid();
+        };
+
+        function renderFullArtworksGrid() {
+            const container = document.getElementById('artworks-grid-container');
+            if (!container) return;
+
+            if (appData.artworks.length === 0) {
+                container.innerHTML = `<p class="text-sm text-slate-500 text-center col-span-full py-10">No se encontraron registros de obra.</p>`;
+                return;
+            }
+
+            const sortedArtworks = [...appData.artworks].sort((a, b) => {
+                const dateA = a.fecha_registro ? new Date(a.fecha_registro) : new Date(0);
+                const dateB = b.fecha_registro ? new Date(b.fecha_registro) : new Date(0);
+                return dateB - dateA;
+            });
+
+            container.innerHTML = sortedArtworks.map(a => {
+                const imgUrl = resolveImageUrl(a.adjuntos, a.nombre_obra);
+                const adjCount = Array.isArray(a.adjuntos) ? a.adjuntos.length : 0;
+                const statusColor = {
+                    'Consolidación': 'border-amber-500/30 text-amber-400',
+                    'Bodega': 'border-blue-500/30 text-blue-400',
+                    'Vendida': 'border-emerald-500/30 text-emerald-400'
+                } [a.estatus] || 'border-zinc-500/30 text-zinc-400';
+                const technique = a.tecnica || a.tipo_obra || 'No especificado';
+                const provenance = getProvenanceNameById(a.provenance);
+
+                return `
+                    <div class="artwork-item artwork-card" onclick="openArtworkDetail('${a.id}')">
+                        <img src="${imgUrl}" alt="${a.nombre_obra || 'Obra'}" loading="lazy"
+                             onerror="this.onerror=null; this.src='https://placehold.co/400x400/18181b/71717a?text=Obra';">
+                        <div class="status-badge ${statusColor}">${a.estatus || 'Consolidación'}</div>
+                        <div class="promotion-badge ${a.promocionar ? 'border border-fuchsia-400/40 text-fuchsia-200' : 'border border-zinc-700 text-zinc-400'}">
+                            <i data-lucide="${a.promocionar ? 'megaphone' : 'megaphone-off'}" class="w-3 h-3"></i>
+                            ${a.promocionar ? 'Promocionar' : 'Sin promoción'}
+                        </div>
+                        <div class="hover-info">
+                            <div class="title">${a.nombre_obra || 'Sin título'}</div>
+                            <div class="sub">${a.autor || 'Autor desconocido'} · ${a.ubicacion || ''}</div>
+                            <div class="meta"><span>Técnica:</span> ${technique}</div>
+                            <div class="meta"><span>Provenance:</span> ${provenance}</div>
+                        </div>
+                        ${adjCount > 0 ? `<div class="absolute top-9 left-2 bg-indigo-600/80 backdrop-blur px-1.5 py-0.5 text-[9px] text-white flex items-center gap-1"><i data-lucide="paperclip" class="w-3 h-3"></i> ${adjCount}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // ============================================================
+        // ARTWORK DETAIL
+        // ============================================================
+        let activeDetailArtwork = null;
+
+        function formatArtworkPrice(artwork) {
+            const price = artwork.precio_venta || artwork.precio_lista;
+            return price ? `$${Number(price).toLocaleString()} ${artwork.tipo_moneda || 'MXN'}` : 'No disponible';
+        }
+
+        function artworkTechnicalSheetRows(artwork) {
+            const measures = [
+                artwork.ancho && `Ancho: ${artwork.ancho} m`,
+                artwork.alto && `Alto: ${artwork.alto} m`,
+                artwork.largo && `Largo: ${artwork.largo} m`
+            ].filter(Boolean).join(' · ') || 'No especificadas';
+            return [
+                ['Autor', artwork.autor || 'No especificado'],
+                ['Tipo de obra', artwork.tipo_obra || 'No especificado'],
+                ['Ubicación', artwork.ubicacion || 'No especificada'],
+                ['Estatus', artwork.estatus || 'Consolidación'],
+                ['Superficie', artwork.superficie ? `${artwork.superficie} m²` : 'No especificada'],
+                ['Medidas', measures],
+                ['Precio', formatArtworkPrice(artwork)],
+                ['Cliente', artwork.cliente || 'No especificado'],
+                ['Provenance', artwork.provenance || 'No especificado'],
+                ['Etiquetas', Array.isArray(artwork.tags) && artwork.tags.length ? artwork.tags.join(', ') : 'Sin etiquetas'],
+                ['Observaciones', artwork.observaciones || 'Sin observaciones']
+            ];
+        }
+
+        function getArtworkWhatsAppDescription(artwork) {
+            const rows = artworkTechnicalSheetRows(artwork);
+            const withoutLinks = (value) => String(value || '')
+                .replace(/(?:https?:\/\/|www\.)\S+/gi, '')
+                .replace(/\s{2,}/g, ' ')
+                .trim();
+            return [
+                `*${withoutLinks(artwork.nombre_obra) || 'Sin título'}*`,
+                'Ficha técnica',
+                '',
+                ...rows.map(([label, value]) => `*${withoutLinks(label)}:* ${withoutLinks(value) || 'No especificado'}`)
+            ].join('\n');
+        }
+
+        async function getArtworkImageFile(artwork) {
+            const imageUrl = resolveImageUrl(artwork.adjuntos, artwork.nombre_obra);
+            const response = await fetch(imageUrl);
+            if (!response.ok) throw new Error('No fue posible obtener la imagen de la obra.');
+
+            const image = await response.blob();
+            if (!image.type.startsWith('image/')) {
+                throw new Error('El archivo principal de la obra no es una imagen.');
+            }
+
+            const safeName = (artwork.nombre_obra || 'obra')
+                .replace(/[^a-z0-9]+/gi, '-')
+                .replace(/^-|-$/g, '') || 'obra';
+            const extension = image.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+            return new File([image], `${safeName}.${extension}`, { type: image.type });
+        }
+
+        window.shareArtworkToWhatsApp = async function() {
+            if (!activeDetailArtwork) return;
+            const button = document.getElementById('share-artwork-whatsapp');
+            const originalContent = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = '<i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i> Preparando…';
+            lucide.createIcons();
+            try {
+                const file = await getArtworkImageFile(activeDetailArtwork);
+                if (!navigator.share || (navigator.canShare && !navigator.canShare({ files: [file] }))) {
+                    throw new Error('Este navegador no permite enviar imágenes directamente a WhatsApp.');
+                }
+                await navigator.share({
+                    files: [file],
+                    text: getArtworkWhatsAppDescription(activeDetailArtwork)
+                });
+            } catch (error) {
+                if (error.name !== 'AbortError') showNotification(error.message || 'No fue posible compartir la obra.');
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalContent;
+                lucide.createIcons();
+            }
+        };
+
+        window.openArtworkDetail = function(artworkId) {
+            const artwork = appData.artworks.find(a => a.id === artworkId);
+            if (!artwork) return;
+            activeDetailArtwork = artwork;
+
+            const modal = document.getElementById('artwork-detail-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            document.getElementById('detail-title').textContent = artwork.nombre_obra || 'Sin título';
+            document.getElementById('detail-subtitle').textContent =
+                `${artwork.autor || 'Autor desconocido'} · ${artwork.ubicacion || 'Ubicación no especificada'}`;
+
+            const imgUrl = resolveImageUrl(artwork.adjuntos, artwork.nombre_obra);
+            document.getElementById('detail-image').src = imgUrl;
+            document.getElementById('detail-image').alt = artwork.nombre_obra || 'Obra';
+
+            document.getElementById('detail-status').textContent = artwork.estatus || 'Consolidación';
+            document.getElementById('detail-type').textContent = artwork.tipo_obra || 'No especificado';
+            document.getElementById('detail-area').textContent = artwork.superficie ? `${artwork.superficie} m²` : 'No especificada';
+            document.getElementById('detail-price').textContent = formatArtworkPrice(artwork);
+
+            updateArtworkPromotionButton(artwork);
+
+            const measures = [];
+            if (artwork.ancho) measures.push(`Ancho: ${artwork.ancho}m`);
+            if (artwork.alto) measures.push(`Alto: ${artwork.alto}m`);
+            if (artwork.largo) measures.push(`Largo: ${artwork.largo}m`);
+            document.getElementById('detail-measures').textContent = measures.length > 0 ? measures.join(' | ') : 'No especificadas';
+
+            document.getElementById('detail-client').textContent = artwork.cliente || 'No especificado';
+            document.getElementById('detail-provenance').textContent = artwork.provenance || 'No especificado';
+            document.getElementById('detail-observations').textContent = artwork.observaciones || 'Sin observaciones';
+
+            const tagsContainer = document.getElementById('detail-tags');
+            if (Array.isArray(artwork.tags) && artwork.tags.length > 0) {
+                tagsContainer.innerHTML = artwork.tags.map(tag =>
+                    `<span class="px-2 py-0.5 text-[10px] bg-zinc-800 text-zinc-300 rounded-sm">${tag}</span>`
+                ).join('');
+            } else {
+                tagsContainer.innerHTML = '<span class="text-xs text-zinc-500">Sin etiquetas</span>';
+            }
+
+            const docsContainer = document.getElementById('detail-documents');
+            if (Array.isArray(artwork.documentos) && artwork.documentos.length > 0) {
+                docsContainer.innerHTML = artwork.documentos.map(d =>
+                    `<a href="${d.url || '#'}" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 transition block truncate">📄 ${d.nombre || 'Documento'}</a>`
+                ).join('');
+            } else {
+                docsContainer.innerHTML = '<span class="text-xs text-zinc-500">Sin documentos</span>';
+            }
+
+            const adjContainer = document.getElementById('detail-attachments');
+            if (Array.isArray(artwork.adjuntos) && artwork.adjuntos.length > 0) {
+                adjContainer.innerHTML = artwork.adjuntos.map(a =>
+                    `<a href="${a.url || '#'}" target="_blank" class="text-xs text-indigo-400 hover:text-indigo-300 transition block truncate">📎 ${a.name || 'Adjunto'}</a>`
+                ).join('');
+            } else {
+                adjContainer.innerHTML = '<span class="text-xs text-zinc-500">Sin adjuntos</span>';
+            }
+
+            lucide.createIcons();
+            document.body.style.overflow = 'hidden';
+        };
+
+        function updateArtworkPromotionButton(artwork) {
+            const button = document.getElementById('toggle-artwork-promotion');
+            if (!button) return;
+
+            const isPromoted = artwork.promocionar === true;
+            button.setAttribute('aria-pressed', String(isPromoted));
+            button.className = isPromoted
+                ? 'inline-flex items-center gap-1.5 border border-fuchsia-400/60 bg-fuchsia-500/10 px-3 py-2 text-xs font-medium text-fuchsia-200 transition hover:border-fuchsia-300 hover:text-white'
+                : 'inline-flex items-center gap-1.5 bg-zinc-900 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:text-fuchsia-200';
+            button.innerHTML = isPromoted
+                ? '<i data-lucide="megaphone-off" class="w-4 h-4"></i><span>Quitar promoción</span>'
+                : '<i data-lucide="megaphone" class="w-4 h-4"></i><span>Promocionar</span>';
+        }
+
+        window.toggleArtworkPromotion = function() {
+            if (!activeDetailArtwork) return;
+
+            pendingArtworkPromotion = {
+                artworkId: activeDetailArtwork.id,
+                promocionar: !activeDetailArtwork.promocionar
+            };
+
+            const user = taskFlow.authenticatedUser;
+            const role = (user?.rol || user?.role || '').toLowerCase();
+            if (user && (role === 'director' || role === 'supervisor')) {
+                executeArtworkPromotion(pendingArtworkPromotion.artworkId, pendingArtworkPromotion.promocionar, user);
+            } else {
+                openActionLoginModal();
+            }
+        };
+
+        async function executeArtworkPromotion(artworkId, promocionar, user) {
+            const artwork = appData.artworks.find(a => a.id === artworkId);
+            if (!artwork || !user?.id) {
+                showNotification('Selecciona un supervisor o director para actualizar la promoción.');
+                return;
+            }
+
+            const button = document.getElementById('toggle-artwork-promotion');
+            const originalContent = button?.innerHTML;
+            if (button) {
+                button.disabled = true;
+                button.innerHTML = '<i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i><span>Guardando...</span>';
+                lucide.createIcons();
+            }
+
+            try {
+                await fetch(ENDPOINT_ARTWORKS, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                    body: JSON.stringify({
+                        action: 'registro_obra_promocionar_toggle',
+                        data: { id_obra: artworkId, id_actor: user.id, promocionar }
+                    })
+                });
+
+                artwork.promocionar = promocionar;
+                if (activeDetailArtwork?.id === artworkId) {
+                    activeDetailArtwork.promocionar = promocionar;
+                    updateArtworkPromotionButton(activeDetailArtwork);
+                }
+                renderArtworksCarousel();
+                renderFullArtworksGrid();
+                showNotification(promocionar ? 'Obra marcada para promoción.' : 'Promoción retirada de la obra.');
+            } catch (error) {
+                console.error('Error al actualizar promoción:', error);
+                showNotification('No fue posible actualizar la promoción. Intenta de nuevo.');
+                if (button && activeDetailArtwork) updateArtworkPromotionButton(activeDetailArtwork);
+            } finally {
+                pendingArtworkPromotion = null;
+                if (button) {
+                    button.disabled = false;
+                    if (!activeDetailArtwork && originalContent) button.innerHTML = originalContent;
+                }
+                lucide.createIcons();
+            }
+        }
+
+        window.closeArtworkDetail = function() {
+            const modal = document.getElementById('artwork-detail-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            activeDetailArtwork = null;
+            document.body.style.overflow = 'auto';
+        };
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeArtworkDetail();
+                closeLoginModal();
+                closeDocsTaskModal();
+                closeChatSenderModal();
+                closeActionLoginModal();
+            }
+        });
+
+        // ============================================================
+        // LOGIN / AUTH
+        // ============================================================
+        window.openLoginModal = function() {
+            document.getElementById('login-modal').classList.remove('hidden');
+            document.getElementById('login-modal').classList.add('flex');
+            loadDirectorsList();
+
+            if (firebaseUser) {
+                const modalAvatar = document.getElementById('modalUserAvatar');
+                const modalName = document.getElementById('modalUserName');
+                const modalEmail = document.getElementById('modalUserEmail');
+                if (modalAvatar) modalAvatar.src = firebaseUser.photoURL || 'https://ui-avatars.com/api/?background=2d2d2d&color=fff&size=36&name=' + encodeURIComponent(firebaseUser.displayName || 'User');
+                if (modalName) modalName.textContent = firebaseUser.displayName || 'Usuario';
+                if (modalEmail) modalEmail.textContent = firebaseUser.email || '';
+                document.getElementById('firebaseUserOption').classList.remove('hidden');
+                document.getElementById('authSeparator').classList.remove('hidden');
+            } else {
+                document.getElementById('firebaseUserOption').classList.add('hidden');
+                document.getElementById('authSeparator').classList.add('hidden');
+            }
+        };
+
+        window.closeLoginModal = function() {
+            document.getElementById('login-modal').classList.add('hidden');
+            document.getElementById('login-modal').classList.remove('flex');
+        };
+
+        function loadDirectorsList() {
+            const container = document.getElementById('login-users-list');
+            if (appData.responsables.length === 0) {
+                container.innerHTML = `<div class="text-center text-zinc-500 text-xs py-4">Cargando usuarios...</div>`;
+                setTimeout(() => {
+                    renderDirectorsList();
+                }, 500);
+            } else {
+                renderDirectorsList();
+            }
+        }
+
+        function renderDirectorsList() {
+            const container = document.getElementById('login-users-list');
+            const directors = appData.responsables.filter(r =>
+                r.rol && (r.rol.toLowerCase() === 'director' || r.rol.toLowerCase() === 'dirección')
+            );
+
+            if (directors.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-zinc-500 text-xs py-4">
+                        <p>No hay usuarios con rol Director.</p>
+                        <p class="mt-2 text-[10px] text-zinc-600">Solo los Directores pueden crear tareas.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = directors.map(d => `
+                <button onclick="selectDirector('${d.id}', '${d.nombre}', '${d.rol}')"
+                        class="flex items-center gap-3 p-3 bg-zinc-900 hover:bg-zinc-800 transition w-full text-left">
+                    <div class="w-10 h-10 bg-indigo-600/30 flex items-center justify-center text-indigo-400 font-bold text-sm">
+                        ${d.nombre ? d.nombre.charAt(0).toUpperCase() : '?'}
+                    </div>
+                    <div>
+                        <p class="text-sm font-medium text-slate-200">${d.nombre || 'Sin nombre'}</p>
+                        <p class="text-[10px] text-slate-400">${d.email || 'Sin email'} • ${d.rol || 'Director'}</p>
+                    </div>
+                    <span class="ml-auto text-xs px-2 py-0.5 bg-indigo-500/20 text-indigo-400">Director</span>
+                </button>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        window.selectDirector = function(id, nombre, rol) {
+            taskFlow.authenticatedUser = { id, nombre, rol };
+            sessionStorage.setItem('currentUser', JSON.stringify({ id, name: nombre, role: rol }));
+            closeLoginModal();
+            openDocsTaskModal();
+        };
+
+        // ============================================================
+        // NUEVA TAREA - MODAL DOCS (PANTALLA COMPLETA)
+        // ============================================================
+        window.openDocsTaskModal = function() {
+            if (!taskFlow.authenticatedUser) {
+                openLoginModal();
+                return;
+            }
+
+            const authBadge = document.getElementById('docs-auth-user');
+            if (authBadge) {
+                authBadge.textContent = `${taskFlow.authenticatedUser.nombre} (${taskFlow.authenticatedUser.rol})`;
+            }
+
+            populateDocsProjectSelect();
+            populateDocsResponsibleSelect();
+
+            document.getElementById('docs-task-title').value = '';
+            document.getElementById('docs-task-subtitle').value = '';
+            document.getElementById('docs-page-title').value = '';
+            document.getElementById('docs-page-subtitle').value = '';
+            document.getElementById('docs-page-content').value = '';
+            document.getElementById('docs-subproject-select').disabled = true;
+            document.getElementById('docs-subproject-select').innerHTML = '<option value="">Primero proyecto</option>';
+            document.getElementById('docs-priority-select').value = 'media';
+
+            const today = new Date();
+            const weekLater = new Date(today);
+            weekLater.setDate(today.getDate() + 7);
+            document.getElementById('docs-deadline-input').value = weekLater.toISOString().split('T')[0];
+
+            document.getElementById('docs-task-modal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+
+            setTimeout(() => {
+                document.getElementById('docs-task-title').focus();
+            }, 100);
+
+            lucide.createIcons();
+        };
+
+        window.closeDocsTaskModal = function() {
+            document.getElementById('docs-task-modal').classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        };
+
+        function populateDocsProjectSelect() {
+            const select = document.getElementById('docs-project-select');
+            select.innerHTML = '<option value="">Selecciona un proyecto...</option>';
+            if (appData.proyectos.length === 0) {
+                select.innerHTML = '<option value="">Cargando proyectos...</option>';
+                fetchAllData().then(() => populateDocsProjectSelect());
+                return;
+            }
+            appData.proyectos.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = `${p.asignacion || ''} - ${p.nombre}`;
+                select.appendChild(option);
+            });
+
+            select.onchange = function() {
+                const projectId = this.value;
+                if (projectId) {
+                    populateDocsSubprojectSelect(projectId);
+                } else {
+                    document.getElementById('docs-subproject-select').disabled = true;
+                    document.getElementById('docs-subproject-select').innerHTML = '<option value="">Primero proyecto</option>';
+                }
+            };
+        }
+
+        function populateDocsSubprojectSelect(projectId) {
+            const select = document.getElementById('docs-subproject-select');
+            const subproyectos = appData.subproyectos.filter(sp => sp.id_proyecto === projectId);
+
+            if (subproyectos.length === 0) {
+                select.innerHTML = '<option value="">No hay subproyectos</option>';
+                select.disabled = true;
+                return;
+            }
+
+            select.disabled = false;
+            select.innerHTML = '<option value="">Selecciona...</option>';
+            subproyectos.forEach(sp => {
+                const option = document.createElement('option');
+                option.value = sp.id;
+                option.textContent = `${sp.asignacion || ''} - ${sp.nombre}`;
+                select.appendChild(option);
+            });
+        }
+
+        function populateDocsResponsibleSelect() {
+            const select = document.getElementById('docs-responsible-select');
+            if (appData.responsables.length === 0) {
+                select.innerHTML = `<option value="">Cargando...</option>`;
+                return;
+            }
+
+            select.innerHTML = '<option value="">Selecciona...</option>';
+            const sorted = [...appData.responsables].sort((a, b) => {
+                const order = { 'director': 0, 'supervisor': 1, 'responsable': 2 };
+                const aOrder = a.rol ? (order[a.rol.toLowerCase()] ?? 3) : 3;
+                const bOrder = b.rol ? (order[b.rol.toLowerCase()] ?? 3) : 3;
+                return aOrder - bOrder;
+            });
+
+            sorted.forEach(r => {
+                const option = document.createElement('option');
+                option.value = r.id;
+                const rolBadge = r.rol ? ` [${r.rol}]` : '';
+                option.textContent = `${r.nombre || 'Sin nombre'}${rolBadge}`;
+                select.appendChild(option);
+            });
+
+            if (taskFlow.authenticatedUser) {
+                const authId = taskFlow.authenticatedUser.id;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === authId) {
+                        select.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        }
+
+        document.getElementById('docs-task-title')?.addEventListener('input', function() {
+            document.getElementById('docs-page-title').value = this.value;
+        });
+        document.getElementById('docs-page-title')?.addEventListener('input', function() {
+            document.getElementById('docs-task-title').value = this.value;
+        });
+        document.getElementById('docs-task-subtitle')?.addEventListener('input', function() {
+            document.getElementById('docs-page-subtitle').value = this.value;
+        });
+        document.getElementById('docs-page-subtitle')?.addEventListener('input', function() {
+            document.getElementById('docs-task-subtitle').value = this.value;
+        });
+
+        window.confirmDocsTask = async function() {
+            const projectSelect = document.getElementById('docs-project-select');
+            const subprojectSelect = document.getElementById('docs-subproject-select');
+            const responsibleSelect = document.getElementById('docs-responsible-select');
+            const title = document.getElementById('docs-task-title').value.trim();
+            const subtitle = document.getElementById('docs-task-subtitle').value.trim();
+            const content = document.getElementById('docs-page-content').value.trim();
+            const priority = document.getElementById('docs-priority-select').value;
+            const deadline = document.getElementById('docs-deadline-input').value;
+
+            const projectId = projectSelect.value;
+            const subprojectId = subprojectSelect.value;
+            const responsableId = responsibleSelect.value;
+
+            if (!projectId) { alert('Por favor selecciona un proyecto.'); return; }
+            if (!subprojectId) { alert('Por favor selecciona un subproyecto.'); return; }
+            if (!responsableId) { alert('Por favor selecciona un responsable.'); return; }
+            if (!title) { alert('Por favor ingresa un título para la tarea.'); return; }
+            if (!taskFlow.authenticatedUser) { alert('No has iniciado sesión.'); return; }
+
+            const taskId = 'T_' + Date.now().toString(36).toUpperCase();
+            const payload = {
+                action: 'tarea_add',
+                data: {
+                    id: taskId,
+                    id_subproyecto: subprojectId,
+                    id_responsable: responsableId,
+                    prioridad: priority,
+                    estatus: 'pendiente',
+                    detalles: title,
+                    descripcion: subtitle || content || '',
+                    fecha_limite: deadline || ''
+                }
+            };
+
+            try {
+                const btn = document.getElementById('docs-create-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i data-lucide="loader-circle" class="w-3.5 h-3.5 animate-spin inline-block mr-1"></i> Creando...';
+                btn.disabled = true;
+
+                await fetch(ENDPOINT_TASKS, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                await fetchAllData();
+                renderDashboardWidgets();
+                renderTasksTable();
+
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                closeDocsTaskModal();
+                showNotification('Tarea creada exitosamente');
+            } catch (error) {
+                console.error('Error al crear tarea:', error);
+                alert('Error al crear la tarea. Por favor intenta de nuevo.');
+                const btn = document.getElementById('docs-create-btn');
+                if (btn) {
+                    btn.innerHTML = '<i data-lucide="plus" class="w-3.5 h-3.5 inline-block mr-1"></i> Crear tarea';
+                    btn.disabled = false;
+                    lucide.createIcons();
+                }
+            }
+        };
+
+        window.openAddTaskModal = function() {
+            openDocsTaskModal();
+        };
+
+        // ============================================================
+        // MOCK DATA
+        // ============================================================
+        function getMockTasks() {
+            return [
+                { id: 'T1', asignacion: '2.5.9JM', estatus: 'completado', prioridad: 'alta', detalles: 'Revisar documentación del proyecto',
+                    descripcion: 'Validar planos estructurales con el equipo.', fecha_limite: '2026-06-15',
+                    id_responsable: '1', fecha_registro: '2025-06-01' },
+                { id: 'T2', asignacion: '1.2.2MR', estatus: 'completado', prioridad: 'media', detalles: 'Aprobación de presupuesto inicial',
+                    descripcion: 'Validación con directiva.', fecha_limite: '2026-05-30', id_responsable: '2', fecha_registro: '2025-05-15' },
+                { id: 'T3', asignacion: '2.1.1AL', estatus: 'completado', prioridad: 'baja', detalles: 'Entrega de catálogo de obras',
+                    descripcion: 'Compilación fotográfica.', fecha_limite: '2026-06-20', id_responsable: '3', fecha_registro: '2025-06-10' },
+                { id: 'T4', asignacion: '1.3.4IS', estatus: 'en_curso', prioridad: 'media', detalles: 'Actualizar inventario de obras',
+                    descripcion: 'Registrar nuevas adquisiciones.', fecha_limite: '2026-07-01', id_responsable: '1', fecha_registro: '2025-06-20' },
+                { id: 'T5', asignacion: '3.2.1DR', estatus: 'en_curso', prioridad: 'urgente', detalles: 'Resolver conflicto de permisos',
+                    descripcion: 'Coordinación con autoridades.', fecha_limite: '2026-06-10', id_responsable: '4', fecha_registro: '2025-06-18' },
+                { id: 'T6', asignacion: '2.3.1IS', estatus: 'en_curso', prioridad: 'alta', detalles: 'Preparar presentación para cliente',
+                    descripcion: 'Armar deck con renders finales.', fecha_limite: '2026-06-25', id_responsable: '2', fecha_registro: '2025-06-22' },
+                { id: 'T7', asignacion: '1.4.2SV', estatus: 'en_curso', prioridad: 'media', detalles: 'Revisar contratos de proveedores',
+                    descripcion: 'Verificar cláusulas y vigencias.', fecha_limite: '2026-06-28', id_responsable: '3', fecha_registro: '2025-06-19' }
+            ];
+        }
+
+        function getMockArtworks() {
+            return [
+                { id: 'obra-1', nombre_obra: 'Residencia Minimalista', autor: 'Carlos Mendoza', ubicacion: 'Puebla, MX',
+                    estatus: 'Consolidación', tipo_obra: 'Residencial', superficie: 250, precio_lista: 1200000,
+                    precio_venta: 1150000, fecha_registro: '2025-01-15', cliente: 'Familia García',
+                    observaciones: 'Proyecto en fase final', provenance: 'Directo del artista',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=500' }],
+                    documentos: [{ nombre: 'Escritura', url: '#' }],
+                    tags: ['moderno', 'minimalista', 'nuevo'], ancho: 12, alto: 6, largo: 15, tipo_moneda: 'MXN',
+                    verificada: true },
+                { id: 'obra-2', nombre_obra: 'Torre Corporativa', autor: 'Sofía Valdés', ubicacion: 'CDMX',
+                    estatus: 'Bodega', tipo_obra: 'Comercial', superficie: 1500, precio_lista: 5000000,
+                    fecha_registro: '2025-02-20', cliente: 'Grupo Inmobiliario', observaciones: 'En espera de comprador',
+                    provenance: 'Galería Central',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=500' }],
+                    documentos: [{ nombre: 'Planos', url: '#' }],
+                    tags: ['corporativo', 'moderno'], ancho: 25, alto: 80, largo: 25, tipo_moneda: 'MXN',
+                    verificada: false },
+                { id: 'obra-3', nombre_obra: 'Pabellón Botánico', autor: 'Estudio Arquitectura', ubicacion: 'Monterrey',
+                    estatus: 'Vendida', tipo_obra: 'Cultural', superficie: 800, precio_lista: 2200000,
+                    precio_venta: 2100000, fecha_registro: '2024-11-10', fecha_venta: '2025-01-05',
+                    cliente: 'Gobierno del Estado', observaciones: 'Proyecto completado', provenance: 'Concurso público',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=500' }],
+                    documentos: [{ nombre: 'Contrato', url: '#' }],
+                    tags: ['público', 'botánico', 'premiado'], ancho: 30, alto: 12, largo: 30, tipo_moneda: 'MXN',
+                    verificada: true },
+                { id: 'obra-4', nombre_obra: 'Casa del Bosque', autor: 'Grupo Z', ubicacion: 'Valle de Bravo',
+                    estatus: 'Consolidación', tipo_obra: 'Residencial', superficie: 180, precio_lista: 850000,
+                    fecha_registro: '2025-03-01', cliente: 'Familia Rodríguez', observaciones: 'Diseño sustentable',
+                    provenance: 'Proyecto personal',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=500' }],
+                    tags: ['sustentable', 'bosque', 'moderno'], ancho: 10, alto: 4, largo: 12, tipo_moneda: 'MXN',
+                    verificada: false },
+                { id: 'obra-5', nombre_obra: 'Edificio Multifamiliar', autor: 'Arquitectos Asociados',
+                    ubicacion: 'Guadalajara, MX', estatus: 'Consolidación', tipo_obra: 'Residencial', superficie: 320,
+                    precio_lista: 1800000, fecha_registro: '2025-03-15', cliente: 'Inmobiliaria del Sur',
+                    observaciones: 'En construcción', provenance: 'Encargo directo',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1574362848149-11496d93a7c7?w=500' }],
+                    tags: ['multifamiliar', 'moderno'], ancho: 18, alto: 20, largo: 15, tipo_moneda: 'MXN',
+                    verificada: false },
+                { id: 'obra-6', nombre_obra: 'Centro Cultural', autor: 'Mónica Torres', ubicacion: 'Querétaro, MX',
+                    estatus: 'Bodega', tipo_obra: 'Cultural', superficie: 1200, precio_lista: 3500000,
+                    fecha_registro: '2024-12-01', cliente: 'Fundación Cultural', observaciones: 'Restauración en curso',
+                    provenance: 'Donación',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=500' }],
+                    documentos: [{ nombre: 'Dictamen', url: '#' }],
+                    tags: ['cultural', 'restauración'], ancho: 40, alto: 10, largo: 30, tipo_moneda: 'MXN',
+                    verificada: false },
+                { id: 'obra-7', nombre_obra: 'Oficinas Creativas', autor: 'Estudio NOMADA', ubicacion: 'CDMX',
+                    estatus: 'Vendida', tipo_obra: 'Comercial', superficie: 450, precio_lista: 2800000,
+                    precio_venta: 2750000, fecha_registro: '2024-09-20', fecha_venta: '2025-02-15',
+                    cliente: 'Agencia Digital', observaciones: 'Entrega inmediata', provenance: 'Galería Local',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=500' }],
+                    tags: ['creativo', 'moderno'], ancho: 15, alto: 4, largo: 20, tipo_moneda: 'USD', verificada: true },
+                { id: 'obra-8', nombre_obra: 'Casa de Campo', autor: 'Ignacio Ramírez', ubicacion: 'San Miguel de Allende',
+                    estatus: 'Consolidación', tipo_obra: 'Residencial', superficie: 350, precio_lista: 950000,
+                    fecha_registro: '2025-02-10', cliente: 'Familia Fernández', observaciones: 'Diseño colonial',
+                    provenance: 'Proyecto personal',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=500' }],
+                    tags: ['colonial', 'campo'], ancho: 14, alto: 5, largo: 16, tipo_moneda: 'MXN', verificada: false },
+                { id: 'obra-9', nombre_obra: 'Torre de Oficinas', autor: 'Arquitectura Moderna', ubicacion: 'Monterrey',
+                    estatus: 'Bodega', tipo_obra: 'Comercial', superficie: 2000, precio_lista: 8000000,
+                    fecha_registro: '2024-08-15', cliente: 'Grupo Inmobiliario Norte',
+                    observaciones: 'Disponible para compra', provenance: 'Proyecto propio',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1486718448742-163732cd1544?w=500' }],
+                    documentos: [{ nombre: 'Estudio de impacto', url: '#' }],
+                    tags: ['corporativo', 'alto'], ancho: 30, alto: 100, largo: 30, tipo_moneda: 'MXN',
+                    verificada: false },
+                { id: 'obra-10', nombre_obra: 'Vivienda Sustentable', autor: 'EcoArquitectos', ubicacion: 'Puebla, MX',
+                    estatus: 'Consolidación', tipo_obra: 'Residencial', superficie: 200, precio_lista: 720000,
+                    fecha_registro: '2025-03-20', cliente: 'Familia Morales', observaciones: 'Certificación LEED',
+                    provenance: 'Encargo directo',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=500' }],
+                    tags: ['sustentable', 'LEED', 'moderno'], ancho: 10, alto: 4, largo: 12, tipo_moneda: 'MXN',
+                    verificada: true },
+                { id: 'obra-11', nombre_obra: 'Museo de Arte Moderno', autor: 'Galería Nacional', ubicacion: 'CDMX',
+                    estatus: 'Vendida', tipo_obra: 'Cultural', superficie: 3000, precio_lista: 15000000,
+                    precio_venta: 14500000, fecha_registro: '2023-11-01', fecha_venta: '2024-06-15',
+                    cliente: 'Gobierno Federal', observaciones: 'Proyecto emblemático',
+                    provenance: 'Concurso internacional',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1558030006-450675393462?w=500' }],
+                    documentos: [{ nombre: 'Concesión', url: '#' }],
+                    tags: ['museo', 'arte', 'público'], ancho: 50, alto: 15, largo: 40, tipo_moneda: 'MXN',
+                    verificada: true },
+                { id: 'obra-12', nombre_obra: 'Loft Industrial', autor: 'Diseño Urbano', ubicacion: 'Guadalajara',
+                    estatus: 'Bodega', tipo_obra: 'Residencial', superficie: 120, precio_lista: 450000,
+                    fecha_registro: '2025-01-25', cliente: 'Inversor Privado', observaciones: 'Estilo industrial',
+                    provenance: 'Remodelación',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500' }],
+                    tags: ['industrial', 'loft'], ancho: 6, alto: 4, largo: 12, tipo_moneda: 'USD', verificada: false },
+                { id: 'obra-13', nombre_obra: 'Escuela Primaria', autor: 'Estudio Pedagógico', ubicacion: 'Puebla, MX',
+                    estatus: 'Consolidación', tipo_obra: 'Educativo', superficie: 600, precio_lista: 1000000,
+                    fecha_registro: '2025-02-28', cliente: 'SEP', observaciones: 'Proyecto en desarrollo',
+                    provenance: 'Licitación pública',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=500' }],
+                    tags: ['educativo', 'público'], ancho: 20, alto: 6, largo: 30, tipo_moneda: 'MXN',
+                    verificada: false },
+                { id: 'obra-14', nombre_obra: 'Hotel Boutique', autor: 'Grupo H', ubicacion: 'San Miguel de Allende',
+                    estatus: 'Vendida', tipo_obra: 'Comercial', superficie: 800, precio_lista: 4200000,
+                    precio_venta: 4000000, fecha_registro: '2024-10-05', fecha_venta: '2025-01-20',
+                    cliente: 'Cadena Hotelera', observaciones: 'Proyecto completado', provenance: 'Desarrollo propio',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500' }],
+                    documentos: [{ nombre: 'Licencia', url: '#' }],
+                    tags: ['hotelero', 'boutique'], ancho: 25, alto: 8, largo: 30, tipo_moneda: 'MXN',
+                    verificada: true },
+                { id: 'obra-15', nombre_obra: 'Centro Comercial', autor: 'Arquitectos del Norte',
+                    ubicacion: 'Monterrey, MX', estatus: 'Bodega', tipo_obra: 'Comercial', superficie: 5000,
+                    precio_lista: 18000000, fecha_registro: '2024-07-01', cliente: 'Grupo Inmobiliario',
+                    observaciones: 'En espera de inquilinos', provenance: 'Proyecto conjunto',
+                    adjuntos: [{ url: 'https://images.unsplash.com/photo-1580216643062-e6c160b9b39f?w=500' }],
+                    tags: ['comercial', 'grande'], ancho: 60, alto: 10, largo: 50, tipo_moneda: 'MXN',
+                    verificada: false }
+            ];
+        }
+    </script>
+</body>
+</html>

@@ -30,6 +30,307 @@ body {
     overflow: hidden;
 }
 
+/* ============================================
+   RTBROK SIDEBAR / DARK WORKSPACE THEME
+   ============================================ */
+.rtbrok-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 220px;
+    height: 100vh;
+    height: 100dvh;
+    padding: 20px 12px;
+    background: #080b10;
+    border-right: 1px solid #1b2028;
+    display: flex;
+    flex-direction: column;
+    z-index: 40;
+}
+
+.rtbrok-sidebar-brand {
+    display: flex;
+    align-items: center;
+    height: 58px;
+    padding: 0 12px;
+    margin-bottom: 10px;
+    color: #f4f4f5;
+    font-family: Georgia, serif;
+    font-size: 30px;
+    letter-spacing: -1px;
+}
+
+.rtbrok-sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.rtbrok-sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    min-height: 48px;
+    padding: 8px 10px;
+    color: #d4d4d8;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    text-decoration: none;
+    text-align: left;
+    font-family: 'Roboto', sans-serif;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+.rtbrok-sidebar-link:hover,
+.rtbrok-sidebar-link.active {
+    color: #fff;
+    background: #1a1f28;
+}
+
+.rtbrok-sidebar-link.active {
+    cursor: default;
+}
+
+.rtbrok-sidebar-link .icon-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 30px;
+    width: 30px;
+    height: 30px;
+    color: #a1a1aa;
+    font-size: 18px;
+}
+
+.rtbrok-sidebar-link:hover .icon-wrap,
+.rtbrok-sidebar-link.active .icon-wrap {
+    color: #fff;
+}
+
+.rtbrok-sidebar-link > span:last-child {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .01em;
+}
+
+.workspace-area {
+    position: relative;
+    padding-left: 220px;
+    background: #070a0e;
+}
+
+.workspace-area > .home-screen,
+.workspace-area > .main-content {
+    background: #0d1117;
+}
+
+header {
+    margin-left: 220px;
+    background: #080b10 !important;
+    border-bottom-color: #1b2028 !important;
+    color: #f4f4f5;
+}
+
+header .text-slate-900,
+header .text-slate-700,
+header .text-slate-600 {
+    color: #f4f4f5 !important;
+}
+
+header .text-slate-500,
+header .text-gray-400 {
+    color: #a1a1aa !important;
+}
+
+header .border-gray-300,
+header .border-gray-200 {
+    border-color: #1f242c !important;
+}
+
+header .bg-gray-50 {
+    background: #11161d !important;
+    border-color: #2a2f38 !important;
+    color: #f4f4f5;
+}
+
+.home-screen {
+    background: #0d1117;
+}
+
+.home-screen .logo {
+    color: #f4f4f5;
+}
+
+.home-screen .subtitle,
+.home-screen h2 {
+    color: #a1a1aa;
+}
+
+.catalog-card,
+.results-header,
+.grid-card {
+    background: #11161d;
+    border-color: #1f242c;
+    color: #e4e4e7;
+}
+
+.catalog-card .name-input {
+    color: #f4f4f5;
+    border-bottom-color: #3f4652;
+}
+
+.btn-create-catalog {
+    background: #1a1f28;
+}
+
+.btn-create-catalog:hover {
+    background: #252c37;
+}
+
+.filter-panel-full,
+.config-panel-content {
+    background: #0d1117;
+    color: #e4e4e7;
+}
+
+.filter-header,
+.filter-actions,
+.config-section,
+.config-input,
+.config-textarea,
+.filter-select {
+    border-color: #1f242c;
+}
+
+.config-section,
+.filter-select,
+.config-input,
+.config-textarea {
+    background: #11161d;
+    color: #e4e4e7;
+}
+
+@media (max-width: 640px) {
+    .rtbrok-sidebar {
+        display: none;
+    }
+
+    .workspace-area {
+        padding-left: 0;
+    }
+
+    header {
+        margin-left: 0;
+    }
+}
+
+/* Legibilidad sobre el tema oscuro. Tailwind utilities de los elementos
+   renderizados dinámicamente necesitan prioridad para no volver al gris oscuro. */
+.home-screen .logo,
+.home-screen .subtitle,
+.home-screen h2,
+.home-screen .text-slate-900,
+.home-screen .text-slate-800,
+.home-screen .text-slate-700,
+.home-screen .text-slate-600,
+.home-screen .text-slate-500,
+.home-screen .text-slate-400,
+.home-screen .text-gray-400,
+.catalog-card,
+.catalog-card .name-input,
+.catalog-card .edit-hint,
+.catalog-card .text-slate-900,
+.catalog-card .text-slate-800,
+.catalog-card .text-slate-700,
+.catalog-card .text-slate-600,
+.catalog-card .text-slate-500,
+.catalog-card .text-slate-400 {
+    color: #f4f4f5 !important;
+}
+
+.home-screen .subtitle,
+.home-screen .text-slate-500,
+.home-screen .text-slate-400,
+.home-screen .text-gray-400,
+.catalog-card .edit-hint,
+.catalog-card .text-slate-500,
+.catalog-card .text-slate-400 {
+    color: #a1a1aa !important;
+}
+
+.catalog-card .text-slate-700,
+.catalog-card .text-slate-600 {
+    color: #d4d4d8 !important;
+}
+
+.filter-panel-full .text-slate-900,
+.filter-panel-full .text-slate-800,
+.filter-panel-full .text-slate-700,
+.filter-panel-full .text-slate-600,
+.filter-panel-full .text-slate-500,
+.filter-panel-full .text-slate-400,
+.config-panel-content .text-slate-900,
+.config-panel-content .text-slate-800,
+.config-panel-content .text-slate-700,
+.config-panel-content .text-slate-600,
+.config-panel-content .text-slate-500,
+.config-panel-content .text-slate-400,
+.main-content .text-slate-900,
+.main-content .text-slate-800,
+.main-content .text-slate-700,
+.main-content .text-slate-600,
+.main-content .text-slate-500,
+.main-content .text-slate-400 {
+    color: #e4e4e7 !important;
+}
+
+.filter-panel-full .text-slate-500,
+.filter-panel-full .text-slate-400,
+.config-panel-content .text-slate-500,
+.config-panel-content .text-slate-400,
+.main-content .text-slate-500,
+.main-content .text-slate-400 {
+    color: #a1a1aa !important;
+}
+
+.results-toolbar-btn,
+.select-all-btn,
+.order-select,
+.pdf-config-bar .config-group label,
+.page-layout-btn,
+.view-toggle button,
+.filter-label {
+    color: #d4d4d8;
+}
+
+.results-toolbar-btn:hover,
+.select-all-btn:hover,
+.view-toggle button:hover:not(.active) {
+    color: #ffffff;
+}
+
+.results-toolbar-btn:hover,
+.results-toolbar-btn:not(.results-toolbar-btn-primary):hover,
+.select-all-btn:hover {
+    background: #1a1f28;
+    border-color: #2a2f38;
+}
+
+.pdf-config-bar .config-group,
+.page-layout-btn,
+.view-toggle {
+    background: #1a1f28;
+    border-color: #2a2f38;
+}
+
+.view-toggle button.active,
+.page-layout-btn.active {
+    background: #2a2f38;
+    color: #ffffff;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
@@ -1503,6 +1804,59 @@ header {
     .pdf-viewer-controls {
         padding: 8px 16px;
         min-height: 44px;
+    }
+}
+
+/* Final theme overrides keep dynamically rendered panels consistent with the
+   sidebar palette, including rules declared earlier in this stylesheet. */
+body {
+    background-color: #070a0e;
+    color: #e4e4e7;
+}
+
+.workspace-area,
+.home-screen {
+    background: #0d1117 !important;
+}
+
+.catalog-card,
+.results-header,
+.grid-card,
+.local-catalogs-panel,
+.pdf-viewer-sidebar {
+    background: #11161d;
+    border-color: #1f242c;
+    color: #e4e4e7;
+}
+
+.main-content,
+.grid-wrapper {
+    background: #0d1117;
+}
+
+.filter-panel-full,
+.config-panel-content,
+.modal-content,
+.pdf-viewer-container {
+    background: #0d1117;
+    color: #e4e4e7;
+}
+
+.filter-select,
+.config-input,
+.config-textarea {
+    background: #11161d;
+    border-color: #2a2f38;
+    color: #e4e4e7;
+}
+
+@media (max-width: 640px) {
+    .workspace-area {
+        padding-left: 0;
+    }
+
+    header {
+        margin-left: 0;
     }
 }
 
