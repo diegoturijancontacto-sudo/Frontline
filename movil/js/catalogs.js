@@ -117,6 +117,104 @@ async function loadLocalCatalogs() {
     }
 }
 
+// Cargar PDFs de catálogos personalizados publicados por Apps Script
+async function loadPersonalizedCatalogs() {
+    const listContainer = document.getElementById('personalizedCatalogsList');
+    const countSpan = document.getElementById('personalizedCatalogCount');
+    if (!listContainer || !countSpan) return;
+
+    listContainer.innerHTML = `
+        <div class="text-center text-slate-400 py-8">
+            <i class="fas fa-spinner fa-spin mb-3"></i>
+            <p class="text-sm">Cargando catálogos personalizados...</p>
+        </div>
+    `;
+
+    try {
+        const response = await fetch(`${PERSONALIZED_CATALOGS_URL}?action=list`);
+        if (!response.ok) throw new Error(`Error HTTP ${response.status}`);
+
+        const result = await response.json();
+        if (result.status !== 'ok' || !Array.isArray(result.files)) {
+            throw new Error(result.message || 'Respuesta inválida del servidor');
+        }
+
+        const catalogs = result.files;
+        countSpan.textContent = `${catalogs.length} catálogo${catalogs.length !== 1 ? 's' : ''}`;
+
+        if (catalogs.length === 0) {
+            listContainer.innerHTML = `
+                <div class="text-center text-slate-400 py-8">
+                    <i class="fas fa-folder-open text-3xl mb-3 opacity-30"></i>
+                    <p class="text-sm">No hay catálogos personalizados disponibles.</p>
+                </div>
+            `;
+            return;
+        }
+
+        listContainer.innerHTML = '';
+        catalogs.forEach(catalog => {
+            const card = document.createElement('div');
+            card.className = 'personalized-catalog-card';
+
+            const info = document.createElement('div');
+            info.className = 'min-w-0';
+
+            const title = document.createElement('p');
+            title.className = 'font-medium text-sm text-slate-800 truncate';
+            title.textContent = catalog.name || 'Catálogo sin nombre';
+
+            const metadata = document.createElement('p');
+            metadata.className = 'text-xs text-slate-400 mt-1';
+            metadata.textContent = formatPersonalizedCatalogMetadata(catalog);
+
+            info.append(title, metadata);
+
+            const download = document.createElement('a');
+            download.className = 'personalized-catalog-download';
+            download.href = `${PERSONALIZED_CATALOGS_URL}?action=download&id=${encodeURIComponent(catalog.id)}`;
+            download.target = '_blank';
+            download.rel = 'noopener';
+            download.title = 'Descargar catálogo';
+            download.innerHTML = '<i class="fas fa-download"></i><span>Descargar</span>';
+
+            card.append(info, download);
+            listContainer.appendChild(card);
+        });
+    } catch (error) {
+        console.error('Error al cargar catálogos personalizados:', error);
+        countSpan.textContent = 'No disponible';
+        listContainer.innerHTML = `
+            <div class="text-center text-red-400 py-8">
+                <i class="fas fa-exclamation-triangle text-3xl mb-3 opacity-60"></i>
+                <p class="text-sm">No se pudieron cargar los catálogos personalizados.</p>
+                <button onclick="loadPersonalizedCatalogs()" class="mt-4 px-4 py-2 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">
+                    <i class="fas fa-sync mr-1"></i> Reintentar
+                </button>
+            </div>
+        `;
+    }
+}
+
+function formatPersonalizedCatalogMetadata(catalog) {
+    const parts = [];
+    if (catalog.size) parts.push(formatFileSize(catalog.size));
+    if (catalog.date) {
+        const date = new Date(catalog.date);
+        if (!Number.isNaN(date.getTime())) {
+            parts.push(date.toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }));
+        }
+    }
+    return parts.join(' · ') || 'PDF disponible para descarga';
+}
+
+function formatFileSize(bytes) {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
 // Alternar panel de catálogos locales
 function toggleLocalCatalogsPanel() {
     const panel = document.getElementById('localCatalogsPanel');

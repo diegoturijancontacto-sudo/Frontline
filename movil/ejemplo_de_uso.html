@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gestor de PDFs</title>
+<style>
+  :root { --bg:#f5f6fa; --card:#fff; --accent:#4a6cf7; --danger:#e74c3c; --ok:#27ae60; }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg);
+         margin: 0; padding: 2rem 1rem; color: #333; }
+  .container { max-width: 720px; margin: 0 auto; }
+  h1 { font-size: 1.6rem; margin-bottom: 1.5rem; }
+  .card { background: var(--card); border-radius: 12px; padding: 1.5rem;
+          box-shadow: 0 2px 8px rgba(0,0,0,.06); margin-bottom: 1.5rem; }
+  .dropzone { border: 2px dashed #bbb; border-radius: 10px; padding: 2rem;
+              text-align: center; cursor: pointer; transition: .2s; }
+  .dropzone:hover, .dropzone.dragover { border-color: var(--accent); background: #f0f3ff; }
+  .dropzone p { margin: .5rem 0; color: #666; }
+  button { background: var(--accent); color: #fff; border: none; padding: .7rem 1.3rem;
+           border-radius: 8px; font-size: 1rem; cursor: pointer; transition: .2s; }
+  button:hover:not(:disabled) { background: #3a56d4; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .file-list { list-style: none; padding: 0; margin: 0; }
+  .file-list li { display: flex; align-items: center; justify-content: space-between;
+                  padding: .8rem 0; border-bottom: 1px solid #eee; gap: .5rem; }
+  .file-list li:last-child { border-bottom: none; }
+  .file-info { flex: 1; min-width: 0; }
+  .file-name { font-weight: 500; word-break: break-word; }
+  .file-meta { font-size: .8rem; color: #888; }
+  .actions { display: flex; gap: .5rem; }
+  .btn-sm { padding: .4rem .8rem; font-size: .85rem; }
+  .btn-danger { background: var(--danger); }
+  .btn-danger:hover { background: #c0392b; }
+  .progress { height: 6px; background: #eee; border-radius: 3px; overflow: hidden;
+              margin-top: .8rem; display: none; }
+  .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .toast { position: fixed; bottom: 1rem; right: 1rem; padding: 1rem 1.5rem;
+           border-radius: 8px; color: #fff; font-weight: 500; opacity: 0;
+           transform: translateY(20px); transition: .3s; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.ok { background: var(--ok); }
+  .toast.err { background: var(--danger); }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📄 Gestor de PDFs</h1>
+
+  <!-- SUBIR -->
+  <div class="card">
+    <h2 style="margin-top:0;font-size:1.1rem">Subir archivo</h2>
+    <div class="dropzone" id="dropzone">
+      <p><strong>Arrastra un PDF aquí</strong> o haz clic para seleccionar</p>
+      <p style="font-size:.85rem">Máx. 45 MB</p>
+    </div>
+    <input type="file" id="pdfFile" accept="application/pdf" hidden>
+    <div class="progress" id="progress"><div class="progress-bar" id="progressBar"></div></div>
+  </div>
+
+  <!-- LISTA -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+      <h2 style="margin:0;font-size:1.1rem">Archivos disponibles</h2>
+      <button class="btn-sm" onclick="loadFiles()">🔄 Recargar</button>
+    </div>
+    <ul class="file-list" id="fileList">
+      <li style="color:#888;justify-content:center">Cargando…</li>
+    </ul>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   CONFIGURACIÓN — pega aquí los valores del setup
+   ============================================================ */
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbweA2tSSdTsasPIctK8fxzxddkgUOj6MotbAyg2LleAa6EwfJdFm1eDl2cvZGtswKrZFA/exec';
+const API_TOKEN   = 'c65259a91db1430db8527b8fdfef0bc0';
+
+/* ============================================================
+   Helpers
+   ============================================================ */
+const $ = id => document.getElementById(id);
+
+function toast(msg, type = 'ok') {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = 'toast ' + type, 3000);
+}
+
+function fmtSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+}
+
+function fmtDate(iso) {
+  return new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+/* ============================================================
+   Subida
+   ============================================================ */
+async function uploadPDF(file) {
+  if (!file) return;
+  if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+    return toast('Solo se permiten archivos PDF', 'err');
+  }
+  if (file.size > 45 * 1024 * 1024) {
+    return toast('El archivo supera 45 MB', 'err');
+  }
+
+  const progress = $('progress');
+  const bar = $('progressBar');
+  progress.style.display = 'block';
+  bar.style.width = '10%';
+
+  try {
+    // Convertir a base64
+    const base64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    bar.style.width = '40%';
+
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      // Sin headers para evitar preflight CORS
+      body: JSON.stringify({
+        action: 'upload',
+        token: API_TOKEN,
+        fileName: file.name,
+        fileData: base64
+      })
+    });
+    bar.style.width = '80%';
+
+    const data = await res.json();
+    if (data.status === 'ok') {
+      bar.style.width = '100%';
+      toast('✅ PDF subido correctamente');
+      loadFiles();
+    } else {
+      throw new Error(data.message || 'Error desconocido');
+    }
+  } catch (err) {
+    toast('❌ ' + err.message, 'err');
+  } finally {
+    setTimeout(() => { progress.style.display = 'none'; bar.style.width = '0'; }, 800);
+  }
+}
+
+/* ============================================================
+   Listado
+   ============================================================ */
+async function loadFiles() {
+  const list = $('fileList');
+  list.innerHTML = '<li style="color:#888;justify-content:center">Cargando…</li>';
+
+  try {
+    const res = await fetch(WEB_APP_URL + '?action=list', { method: 'GET' });
+    const data = await res.json();
+
+    if (data.status !== 'ok') throw new Error(data.message);
+
+    if (!data.files.length) {
+      list.innerHTML = '<li style="color:#888;justify-content:center">No hay PDFs aún</li>';
+      return;
+    }
+
+    list.innerHTML = '';
+    data.files.forEach(f => {
+      const li = document.createElement('li');
+
+      const info = document.createElement('div');
+      info.className = 'file-info';
+      info.innerHTML = `
+        <div class="file-name">${escapeHtml(f.name)}</div>
+        <div class="file-meta">${fmtSize(f.size)} · ${fmtDate(f.date)}</div>
+      `;
+
+      const actions = document.createElement('div');
+      actions.className = 'actions';
+
+      // Descarga directa (el navegador seguirá la redirección a Drive)
+      const dl = document.createElement('a');
+      dl.href = `${WEB_APP_URL}?action=download&id=${encodeURIComponent(f.id)}`;
+      dl.className = 'btn-sm';
+      dl.style.background = 'var(--accent)';
+      dl.style.color = '#fff';
+      dl.style.textDecoration = 'none';
+      dl.style.padding = '.4rem .8rem';
+      dl.style.borderRadius = '8px';
+      dl.style.fontSize = '.85rem';
+      dl.textContent = '⬇ Descargar';
+      dl.target = '_blank';
+
+      const del = document.createElement('button');
+      del.className = 'btn-sm btn-danger';
+      del.textContent = '🗑';
+      del.title = 'Eliminar';
+      del.onclick = () => deleteFile(f.id, f.name);
+
+      actions.appendChild(dl);
+      actions.appendChild(del);
+      li.appendChild(info);
+      li.appendChild(actions);
+      list.appendChild(li);
+    });
+  } catch (err) {
+    list.innerHTML = `<li style="color:var(--danger);justify-content:center">Error: ${escapeHtml(err.message)}</li>`;
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  })[c]);
+}
+
+/* ============================================================
+   Eliminar
+   ============================================================ */
+async function deleteFile(id, name) {
+  if (!confirm(`¿Eliminar "${name}"?`)) return;
+  try {
+    const res = await fetch(WEB_APP_URL, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'delete', token: API_TOKEN, fileId: id })
+    });
+    const data = await res.json();
+    if (data.status === 'ok') {
+      toast('🗑 Archivo eliminado');
+      loadFiles();
+    } else {
+      throw new Error(data.message);
+    }
+  } catch (err) {
+    toast('❌ ' + err.message, 'err');
+  }
+}
+
+/* ============================================================
+   Eventos UI
+   ============================================================ */
+$('dropzone').onclick = () => $('pdfFile').click();
+$('pdfFile').onchange = e => {
+  uploadPDF(e.target.files[0]);
+  e.target.value = '';
+};
+
+const dz = $('dropzone');
+['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault(); dz.classList.add('dragover');
+}));
+['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+}));
+dz.addEventListener('drop', e => {
+  if (e.dataTransfer.files.length) uploadPDF(e.dataTransfer.files[0]);
+});
+
+/* Init */
+loadFiles();
+</script>
+</body>
+</html>

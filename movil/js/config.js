@@ -5,6 +5,9 @@
 // URL del backend (AppScript)
 const API_URL = 'https://script.google.com/macros/s/AKfycbx1wIgADNvhYVbo9nNduz-jtz9s1pkvsZGXL3r6rmfjcWK0NWLFLHuw9zE5B21PF2OXow/exec';
 
+// URL del Apps Script que publica los PDFs de catálogos personalizados
+const PERSONALIZED_CATALOGS_URL = 'https://script.google.com/macros/s/AKfycbweA2tSSdTsasPIctK8fxzxddkgUOj6MotbAyg2LleAa6EwfJdFm1eDl2cvZGtswKrZFA/exec';
+
 // URL de la base de datos de obras
 const DB_URL = 'https://script.google.com/macros/s/AKfycbxyBzZ7duM3pKtobXHj8A2NgFpIarP5WPS71TKTH2uFMOXXL8rzo68-blixF8kgCwvl8w/exec';
 

@@ -184,6 +184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Cargar datos
         await fetchSheetsDatabase();
         await loadLocalCatalogs();
+        await loadPersonalizedCatalogs();
         const hasExternalSelection = openExternalSelection();
         if (!hasExternalSelection) {
             goHome();

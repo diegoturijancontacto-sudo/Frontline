@@ -287,7 +287,7 @@ async function renameCatalog(id, newName) {
 // Sincronizar catálogos
 async function syncCatalogs() {
     showToast('Sincronizando catálogos...', 'info');
-    await loadLocalCatalogs();
+    await Promise.all([loadLocalCatalogs(), loadPersonalizedCatalogs()]);
     showToast('Catálogos sincronizados correctamente.', 'success');
 }
 
