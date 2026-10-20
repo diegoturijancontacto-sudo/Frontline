@@ -326,6 +326,12 @@ async function generateCatalogPDF() {
     state.isLoading = true;
 
     try {
+        // El PDF siempre representa la selección y configuración actuales.
+        // Guardarlas antes de generar evita que el catálogo descargado quede
+        // fuera del historial, especialmente en dispositivos móviles.
+        loaderText.innerText = 'Guardando catálogo...';
+        await saveCatalogToLocal();
+
         const selectedWorks = state.rawObras.filter(o => state.selectedIds.has(o.id));
         const processedArtworks = [];
 
