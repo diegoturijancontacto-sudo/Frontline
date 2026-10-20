@@ -196,6 +196,77 @@ async function loadPersonalizedCatalogs() {
     }
 }
 
+async function uploadPersonalizedCatalog(file) {
+    if (!file) return;
+
+    if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) {
+        showToast('Solo se permiten archivos PDF.', 'error');
+        return;
+    }
+
+    if (file.size > PERSONALIZED_CATALOGS_MAX_BYTES) {
+        showToast('El archivo supera el límite de 45 MB.', 'error');
+        return;
+    }
+
+    const status = document.getElementById('personalizedCatalogUploadStatus');
+    if (status) {
+        status.textContent = `Subiendo ${file.name}...`;
+        status.classList.remove('hidden', 'is-error', 'is-success');
+        status.classList.add('is-uploading');
+    }
+
+    try {
+        const fileData = await readFileAsBase64(file);
+        const response = await fetch(PERSONALIZED_CATALOGS_URL, {
+            method: 'POST',
+            body: JSON.stringify({
+                action: 'upload',
+                token: PERSONALIZED_CATALOGS_TOKEN,
+                fileName: file.name,
+                fileData
+            })
+        });
+        const result = await response.json();
+
+        if (result.status !== 'ok') {
+            throw new Error(result.message || 'El servidor rechazó la carga.');
+        }
+
+        if (status) {
+            status.textContent = 'Catálogo personalizado subido correctamente.';
+            status.classList.remove('is-uploading');
+            status.classList.add('is-success');
+        }
+        showToast('Catálogo personalizado subido correctamente.', 'success');
+        await loadPersonalizedCatalogs();
+    } catch (error) {
+        console.error('Error al subir catálogo personalizado:', error);
+        if (status) {
+            status.textContent = error.message || 'No se pudo subir el catálogo personalizado.';
+            status.classList.remove('is-uploading');
+            status.classList.add('is-error');
+        }
+        showToast('No se pudo subir el catálogo personalizado.', 'error');
+    }
+}
+
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = event => {
+            const result = event.target?.result;
+            if (typeof result !== 'string') {
+                reject(new Error('No se pudo leer el archivo seleccionado.'));
+                return;
+            }
+            resolve(result.split(',')[1] || '');
+        };
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo seleccionado.'));
+        reader.readAsDataURL(file);
+    });
+}
+
 function formatPersonalizedCatalogMetadata(catalog) {
     const parts = [];
     if (catalog.size) parts.push(formatFileSize(catalog.size));

@@ -511,6 +511,24 @@ header {
     background: #334155;
 }
 
+.personalized-catalog-upload-status {
+    margin-top: 10px;
+    font-size: 12px;
+    color: #64748b;
+}
+
+.personalized-catalog-upload-status.is-uploading {
+    color: #2563eb;
+}
+
+.personalized-catalog-upload-status.is-success {
+    color: #059669;
+}
+
+.personalized-catalog-upload-status.is-error {
+    color: #dc2626;
+}
+
 @media (max-width: 640px) {
     .personalized-catalogs-list {
         grid-template-columns: 1fr;
