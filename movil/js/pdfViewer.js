@@ -285,6 +285,9 @@ async function generateAndDisplayPDF(catalog) {
 
     const config = {
         artistName: catalog.config?.artistName || catalog.title,
+        titleFontScale: Number.isFinite(Number(catalog.config?.titleFontScale))
+            ? Math.min(2, Math.max(0.5, Number(catalog.config.titleFontScale)))
+            : 1,
         subtitle: catalog.config?.subtitle || 'OBRA SELECCIONADA',
         updateText: catalog.config?.updateText || 'ACTUALIZACIÓN ' + new Date().getFullYear(),
         legalNote: catalog.config?.legalNote || 'Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.',

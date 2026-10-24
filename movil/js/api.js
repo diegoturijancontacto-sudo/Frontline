@@ -36,6 +36,7 @@ async function saveCatalogToLocal() {
 
     const config = {
         artistName: name,
+        titleFontScale: titleFontScaleFromSliderPosition(document.getElementById('pdfTitleFontScale').value),
         subtitle: document.getElementById('pdfSubtitle').value.trim(),
         updateText: document.getElementById('pdfUpdateText').value.trim(),
         legalNote: document.getElementById('pdfLegalNote').value.trim(),
@@ -180,6 +181,10 @@ async function loadSavedCatalog(id) {
 
         if (catalog.config) {
             document.getElementById('pdfArtistName').value = catalog.config.artistName || '';
+            const titleFontScale = Number(catalog.config.titleFontScale);
+            document.getElementById('pdfTitleFontScale').value =
+                sliderPositionFromTitleFontScale(Number.isFinite(titleFontScale) ? titleFontScale : 1);
+            updateTitleFontScale(document.getElementById('pdfTitleFontScale').value);
             document.getElementById('pdfSubtitle').value = catalog.config.subtitle || '';
             document.getElementById('pdfUpdateText').value = catalog.config.updateText || '';
             document.getElementById('pdfLegalNote').value = catalog.config.legalNote || '';

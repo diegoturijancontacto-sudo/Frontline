@@ -117,6 +117,32 @@ function toggleConfigPanel() {
     panel.classList.toggle('hidden');
 }
 
+function updateTitleFontScale(value) {
+    const sliderPosition = Number(value);
+    const scale = sliderPosition <= 0
+        ? 1 + sliderPosition * 0.5
+        : 1 + sliderPosition;
+    const output = document.getElementById('pdfTitleFontScaleValue');
+    if (output && Number.isFinite(sliderPosition)) {
+        output.textContent = `${Math.round(scale * 100)}%`;
+    }
+}
+
+function titleFontScaleFromSliderPosition(value) {
+    const sliderPosition = Number(value);
+    if (!Number.isFinite(sliderPosition)) return 1;
+    return sliderPosition <= 0 ? 1 + sliderPosition * 0.5 : 1 + sliderPosition;
+}
+
+function sliderPositionFromTitleFontScale(value) {
+    const scale = Math.min(2, Math.max(0.5, Number(value) || 1));
+    return scale <= 1 ? (scale - 1) * 2 : scale - 1;
+}
+
+window.updateTitleFontScale = updateTitleFontScale;
+window.titleFontScaleFromSliderPosition = titleFontScaleFromSliderPosition;
+window.sliderPositionFromTitleFontScale = sliderPositionFromTitleFontScale;
+
 function closeConfigPanel() {
     document.getElementById('configPanel').classList.add('hidden');
 }

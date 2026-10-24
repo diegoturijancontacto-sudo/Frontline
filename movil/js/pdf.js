@@ -168,7 +168,10 @@ async function generatePDFBlob(artworks, cfg) {
 
     doc.setTextColor(20, 20, 20);
     doc.setFont('times', 'normal');
-    doc.setFontSize(28);
+    const titleFontScale = Number.isFinite(Number(cfg.titleFontScale))
+        ? Math.min(2, Math.max(0.5, Number(cfg.titleFontScale)))
+        : 1;
+    doc.setFontSize(28 * titleFontScale);
     doc.text(cfg.artistName.toUpperCase().split('').join(' '), pageWidth / 2, titleY, { align: 'center' });
 
     doc.setFontSize(10);
@@ -372,6 +375,7 @@ async function generateCatalogPDF() {
 
         const config = {
             artistName: document.getElementById('pdfArtistName').value.trim() || 'CATÁLOGO',
+            titleFontScale: titleFontScaleFromSliderPosition(document.getElementById('pdfTitleFontScale').value),
             subtitle: document.getElementById('pdfSubtitle').value.trim() || 'OBRA SELECCIONADA',
             updateText: document.getElementById('pdfUpdateText').value.trim(),
             legalNote: document.getElementById('pdfLegalNote').value.trim(),

@@ -22,6 +22,7 @@ const AVAILABILITY_TEXT = 'TODA LA OBRA SE ENCUENTRA DISPONIBLE A RESERVA DE CON
 // Configuraciones por defecto
 const DEFAULT_CONFIG = {
     artistName: 'CATÁLOGO GENERAL',
+    titleFontScale: 1,
     subtitle: 'OBRA SELECCIONADA',
     updateText: 'ACTUALIZACIÓN 2026',
     legalNote: 'Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.',

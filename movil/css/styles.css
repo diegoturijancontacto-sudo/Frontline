@@ -1105,6 +1105,31 @@ header {
     border-color: #94a3b8;
 }
 
+.config-range-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.config-range {
+    flex: 1;
+    min-width: 0;
+    accent-color: #64748b;
+}
+
+.config-range-label,
+.config-range-value {
+    color: #94a3b8;
+    font-size: 9px;
+}
+
+.config-range-value {
+    display: block;
+    margin-top: 4px;
+    text-align: center;
+    font-weight: 700;
+}
+
 .config-textarea {
     width: 100%;
     font-size: 10px;

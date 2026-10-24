@@ -17,9 +17,11 @@ async function createNewCatalog() {
     
     // Resetear configuración a valores por defecto
     document.getElementById('pdfArtistName').value = trimmedName;
+    document.getElementById('pdfTitleFontScale').value = '0';
+    updateTitleFontScale(0);
     document.getElementById('pdfSubtitle').value = 'OBRA SELECCIONADA';
     document.getElementById('pdfUpdateText').value = 'ACTUALIZACIÓN ' + new Date().getFullYear();
-    document.getElementById('pdfLegalNote').value = 'Toda la obra se encuentra disponible a reserva de confirmación de precio y autenticidad.';
+    document.getElementById('pdfLegalNote').value = 'Las piezas presentadas en este catálogo están sujetas a cambios sin previo aviso. Su disponibilidad, características y precios quedan sujetos a confirmación. Las imágenes son ilustrativas y pueden presentar ligeras variaciones respecto a las piezas originales.';
     
     document.getElementById('cfgPrices').checked = true;
     document.getElementById('cfgDims').checked = true;
