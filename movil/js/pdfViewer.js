@@ -286,7 +286,7 @@ async function generateAndDisplayPDF(catalog) {
     const config = {
         artistName: catalog.config?.artistName || catalog.title,
         titleFontScale: Number.isFinite(Number(catalog.config?.titleFontScale))
-            ? Math.min(2, Math.max(0.5, Number(catalog.config.titleFontScale)))
+            ? Math.min(2, Math.max(0.01, Number(catalog.config.titleFontScale)))
             : 1,
         subtitle: catalog.config?.subtitle || 'OBRA SELECCIONADA',
         updateText: catalog.config?.updateText || 'ACTUALIZACIÓN ' + new Date().getFullYear(),

@@ -118,30 +118,24 @@ function toggleConfigPanel() {
 }
 
 function updateTitleFontScale(value) {
-    const sliderPosition = Number(value);
-    const scale = sliderPosition <= 0
-        ? 1 + sliderPosition * 0.5
-        : 1 + sliderPosition;
-    const output = document.getElementById('pdfTitleFontScaleValue');
-    if (output && Number.isFinite(sliderPosition)) {
-        output.textContent = `${Math.round(scale * 100)}%`;
-    }
+    const input = document.getElementById('pdfTitleFontScale');
+    const percentage = Math.min(200, Math.max(1, Number(value) || 100));
+    if (input) input.value = String(percentage);
 }
 
-function titleFontScaleFromSliderPosition(value) {
-    const sliderPosition = Number(value);
-    if (!Number.isFinite(sliderPosition)) return 1;
-    return sliderPosition <= 0 ? 1 + sliderPosition * 0.5 : 1 + sliderPosition;
+function titleFontScaleFromInput(value) {
+    const percentage = Math.min(200, Math.max(1, Number(value) || 100));
+    return percentage / 100;
 }
 
-function sliderPositionFromTitleFontScale(value) {
-    const scale = Math.min(2, Math.max(0.5, Number(value) || 1));
-    return scale <= 1 ? (scale - 1) * 2 : scale - 1;
+function setTitleFontScaleInput(value) {
+    const input = document.getElementById('pdfTitleFontScale');
+    if (input) input.value = String(Math.round(Math.min(200, Math.max(1, (Number(value) || 1) * 100))));
 }
 
 window.updateTitleFontScale = updateTitleFontScale;
-window.titleFontScaleFromSliderPosition = titleFontScaleFromSliderPosition;
-window.sliderPositionFromTitleFontScale = sliderPositionFromTitleFontScale;
+window.titleFontScaleFromInput = titleFontScaleFromInput;
+window.setTitleFontScaleInput = setTitleFontScaleInput;
 
 function closeConfigPanel() {
     document.getElementById('configPanel').classList.add('hidden');

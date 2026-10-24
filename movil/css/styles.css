@@ -1105,29 +1105,21 @@ header {
     border-color: #94a3b8;
 }
 
-.config-range-row {
+.config-number-row {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.config-range {
-    flex: 1;
-    min-width: 0;
-    accent-color: #64748b;
-}
-
-.config-range-label,
-.config-range-value {
+.config-number-suffix,
+.config-help {
     color: #94a3b8;
     font-size: 9px;
 }
 
-.config-range-value {
+.config-help {
     display: block;
     margin-top: 4px;
-    text-align: center;
-    font-weight: 700;
 }
 
 .config-textarea {
